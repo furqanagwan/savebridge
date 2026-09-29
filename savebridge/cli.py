@@ -39,6 +39,11 @@ def _select(game: Game, saves: dict[str, Save], args) -> list[Save]:
     return [saves[k] for k in sorted(set(wanted), key=game.key_order)]
 
 
+def _pick_files(game: Game, saves: list[Save], args) -> list[Save]:
+    spec = getattr(args, 'files', None)
+    return [game.pick_files(s, spec) for s in saves] if spec else saves
+
+
 def _apply_slot_map(game: Game, saves: list[Save], spec: str | None) -> list[Save]:
     if not spec:
         return saves
@@ -170,7 +175,7 @@ def cmd_convert(args) -> int:
     for w in r.warnings:
         print(f'warning: {w}')
     print(f'From {src}\n  {src.path}')
-    saves = _apply_slot_map(game, _select(game, r.saves, args), args.slot_map)
+    saves = _apply_slot_map(game, _pick_files(game, _select(game, r.saves, args), args), args.slot_map)
     return _write(game, saves, dest, args)
 
 
@@ -183,7 +188,7 @@ def cmd_import(args) -> int:
     if not r.saves:
         print(f'No {game.name} saves found in the given paths.')
         return 1
-    saves = _apply_slot_map(game, _select(game, r.saves, args), args.slot_map)
+    saves = _apply_slot_map(game, _pick_files(game, _select(game, r.saves, args), args), args.slot_map)
     return _write(game, saves, dest, args)
 
 
@@ -225,6 +230,9 @@ def main(argv: list[str] | None = None) -> int:
                         help='include optional saves too (e.g. profile/settings)')
 
     writing = argparse.ArgumentParser(add_help=False)
+    writing.add_argument('--files', metavar='SPEC',
+                         help="only some files of a save, for games with many per save: "
+                              "'newest', 'newest:N' or comma-separated names")
     writing.add_argument('--slot-map', metavar='MAP',
                          help='move slots while copying, e.g. 1:5,2:6')
     writing.add_argument('--dry-run', action='store_true', help='show the plan, write nothing')

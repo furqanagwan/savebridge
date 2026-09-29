@@ -20,6 +20,8 @@ importing saves from other accounts into either platform.
 | `black-ops-2` (`bo2`) | Call of Duty: Black Ops II — campaign | 202970 | `38985CA0.CallofDutyBlackOps2PCMS` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `ghosts` | Call of Duty: Ghosts — campaign | 209160 | `38985CA0.CallofDutyGhostsPCMS` | ⚠️ save loads; mission unlocks are in the profile‡ | 🧪 tested on synthetic saves |
 
+| `kcd2` | Kingdom Come: Deliverance II | 1771300 | `DeepSilver.77536C3FE941` | ✅ verified in game | 🧪 tested on synthetic saves |
+
 ‡ Ghosts' `savegame.svg` is only the Continue point. Mission select reads the
 profile (`settings_s.zip.iw6`), which Steam downloads usually don't include.
 
@@ -214,6 +216,27 @@ per campaign level in story order (prologue … skyway); non-zero marks the
 mission complete and unlocks it in mission select (verified). Field `0x2a` is
 another per-mission string whose meaning is unknown (it is not the Rorke Files).
 Field `0x2b` names the save Continue loads. Editing the profile isn't automated.
+
+### Kingdom Come: Deliverance II
+
+| | Steam | Xbox |
+|---|---|---|
+| Location | `%USERPROFILE%\Saved Games\kingdomcome2\saves\playline<N>\*.whs` (per PC) | WGS container `saves/playline<N>`, one blob per `.whs` |
+| Settings | (left alone) | containers `Profiles`, `Profiles/<name>` (left alone) |
+
+A `.whs` is `0xFFFFFFFF`, a u32 length, an XML `<C_SaveGameDescription>` (save id
+and type, time, level, build, DLCs and PC mods used), then compressed data. No
+account ID and no playline number inside, so a playthrough can go into any free
+playline. Newer builds load older saves; a save that lists DLC or mods you don't
+have still loads, without those items.
+
+Downloads can hold hundreds of saves (600+ MB), more than the Xbox cloud quota
+comfortably takes. `--files newest` (or `newest:N`, or a list of names) copies
+only some of them:
+
+```powershell
+python -m savebridge import kcd2 C:\Downloads\playline0_saves --to xbox --files newest --slot-map 0:1
+```
 
 ## Adding a game
 

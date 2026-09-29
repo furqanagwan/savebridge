@@ -6,11 +6,12 @@ from .control_resonant import ControlResonant
 from .dawnwalker import Dawnwalker
 from .destroy_all_humans import DestroyAllHumans
 from .ghosts import Ghosts
+from .kcd2 import Kcd2
 from .mgs_delta import MgsDelta
 from .samson import Samson
 
 GAMES: dict[str, Game] = {g.id: g for g in (MgsDelta(), DestroyAllHumans(), ControlResonant(),
-                                             Samson(), Dawnwalker(), BlackOps2(), Ghosts())}
+                                             Samson(), Dawnwalker(), BlackOps2(), Ghosts(), Kcd2())}
 
 ALIASES = {
     'mgs3': 'mgs-delta',

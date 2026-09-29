@@ -155,6 +155,10 @@ class Game(ABC):
         """Final form of ``saves`` given what the target already holds. Default: as is."""
         return saves
 
+    def pick_files(self, save: Save, spec: str) -> Save:
+        """Keep only some of a save's files (--files). Games with many files per save override."""
+        raise SaveError(f'{self.name} does not support --files')
+
     def remap(self, save: Save, new_key: str) -> Save:
         """Move a save to a different logical slot."""
         raise SaveError(f'{self.name} does not support moving saves between slots')
