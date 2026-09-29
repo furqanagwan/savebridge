@@ -23,6 +23,7 @@ importing saves from other accounts into either platform.
 | `kcd2` | Kingdom Come: Deliverance II | 1771300 | `DeepSilver.77536C3FE941` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `crimson-desert` | Crimson Desert | 3321460 | `PearlAbyss.CrimsonDesert` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `silent-hill-2` (`sh2`) | SILENT HILL 2 (2024) | 2124490 | `KonamiDigitalEntertainmen.SILENTHILL2` | ✅ verified in game | 🧪 tested on synthetic saves |
+| `ff7-remake` (`ff7`) | FINAL FANTASY VII REMAKE INTERGRADE | 1462040 | `39EA002F.EXED1` | ✅ verified in game | 🧪 tested on synthetic saves |
 
 ‡ Ghosts' `savegame.svg` is only the Continue point. Mission select reads the
 profile (`settings_s.zip.iw6`), which Steam downloads usually don't include.
@@ -262,6 +263,30 @@ zlib-compressed UE 5.1 GVAS body. New Game+ and ending setup live inside each
 save; `PersistentData` only records the last slot and playthrough ID. `UcaSave`
 is the account's achievement progress (counters and flags) and, like the
 settings files, is only copied with `--all`. No account ID anywhere.
+
+### FINAL FANTASY VII REMAKE INTERGRADE
+
+| | Steam | Xbox |
+|---|---|---|
+| Location | `Documents\My Games\FINAL FANTASY VII REMAKE\Steam\<SteamID64>\` | container per save, blob `Data` |
+| Saves | `ff7remake<NNN>.sav` (main game), `ff7remakeplus<NNN>.sav` (INTERmission), `ff7remakecommon.sav` (system, `--all`) | same names |
+| Format | raw save (9,434,752 bytes per slot) | `bilz`, u32 compressed size, u32 raw size, 8 zero bytes, zlib stream of the raw save |
+
+The only game so far where the bytes differ: Steam → Xbox compresses and Xbox →
+Steam decompresses, and the raw save is identical. The game's deflate output
+differs from Python's but both are standard zlib. No account ID inside. If an
+account has two Xbox save folders for the game, the one holding its saves is used.
+
+## Achievements and imported saves
+
+Converting never stops achievements from unlocking: they are awarded by the
+game and Xbox/Steam when events happen, and no save format here carries an
+account ID or an "achievements disabled" flag. What an imported save changes
+is what is left to do. Story, chapter and ending achievements unlock only for
+the parts played after the save point; stat or collection achievements may pop
+the next time the game re-checks them, depending on the game. SILENT HILL 2
+keeps its achievement progress in its own file (`UcaSave`), which is not
+copied by default.
 
 ## Adding a game
 

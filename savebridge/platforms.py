@@ -94,6 +94,16 @@ def steam_game_dir(install_dir: str) -> Path | None:
     return root / 'steamapps' / 'common' / install_dir
 
 
+def documents_dir() -> Path:
+    """The user's Documents folder, following OneDrive or other redirection."""
+    p = _reg_value(r'Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders', 'Personal')
+    if p:
+        p = Path(os.path.expandvars(p))
+        if p.is_dir():
+            return p
+    return Path(os.environ.get('USERPROFILE', Path.home())) / 'Documents'
+
+
 def xbox_game_content(folder: str) -> Path | None:
     """<drive>:/XboxGames/<folder>/Content, on whichever drive the game is installed."""
     for letter in 'CDEFGHIJKLMNOPQRSTUVWXYZ':

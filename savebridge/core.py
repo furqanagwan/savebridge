@@ -192,6 +192,17 @@ def resolve_xbox(game: Game, wanted: str | None) -> Account:
     if not cands:
         raise SaveError(f'no Xbox save folder for {game.name}. Launch the Xbox version once '
                         f'while signed in, then try again.')
+    if len({a.xuid for a in cands}) == 1 and len(cands) > 1:
+        # One account with several save folders (e.g. an old, empty cloud-save ID):
+        # use the one holding this game's saves, then the most recently written.
+        def score(a):
+            try:
+                idx = WgsStore(long_path(a.folder)).index()
+            except (WgsError, OSError):
+                return (0, 0)
+            known = sum(1 for e in idx.entries if game.xbox_key(e.name) is not None)
+            return (known, idx.mtime)
+        return max(cands, key=score)
     if len(cands) > 1:
         listing = '\n  '.join(str(a) for a in cands)
         raise SaveError(f'several Xbox accounts found, pick one with --xbox-account:\n  {listing}')
