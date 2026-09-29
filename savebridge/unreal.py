@@ -45,9 +45,12 @@ def read_header(b: bytes) -> Header:
     if b[:4] != b'GVAS':
         raise GvasError('not an Unreal Engine save file')
     try:
-        _, package = struct.unpack_from('<ii', b, 4)
-        engine = struct.unpack_from('<HHHI', b, 12)
-        branch, o = read_fstring(b, 22)
+        save_version, package = struct.unpack_from('<ii', b, 4)
+        o = 12
+        if save_version >= 3:  # UE5 adds its own package version
+            o += 4
+        engine = struct.unpack_from('<HHHI', b, o)
+        branch, o = read_fstring(b, o + 10)
         _, count = struct.unpack_from('<ii', b, o)
         o += 8 + count * 20
         cls, o = read_fstring(b, o)
@@ -96,6 +99,51 @@ def read_props(b: bytes, o: int) -> tuple[dict[str, Prop], int]:
             o += size
     except (struct.error, UnicodeDecodeError) as e:
         raise GvasError(f'bad property data: {e}') from None
+
+
+_SCALARS = {'IntProperty': '<i', 'Int64Property': '<q', 'UInt32Property': '<I',
+            'FloatProperty': '<f', 'DoubleProperty': '<d', 'BoolProperty': None}
+
+
+def find_scalar_ue5(b: bytes, name: str, start: int = 0):
+    """First simple numeric property called ``name`` in a UE 5.4+ save, or None.
+
+    UE 5.4 changed the property tag to: name, type name, type-parameter count,
+    int32 size, flags byte, value. This reads only parameterless numeric types,
+    which is enough to describe a save without a full parser.
+    """
+    key = fstring(name)
+    i = b.find(key, start)
+    while i >= 0:
+        try:
+            typ, o = read_fstring(b, i + len(key))
+            if typ in _SCALARS and struct.unpack_from('<i', b, o)[0] == 0:
+                size = struct.unpack_from('<i', b, o + 4)[0]
+                flags = b[o + 8]
+                if typ == 'BoolProperty':
+                    return bool(flags & 0x10)
+                if flags == 0 and size == struct.calcsize(_SCALARS[typ]):
+                    return struct.unpack_from(_SCALARS[typ], b, o + 9)[0]
+        except (struct.error, UnicodeDecodeError, IndexError):
+            pass
+        i = b.find(key, i + 1)
+    return None
+
+
+def find_name_ue5(b: bytes, name: str, start: int = 0) -> str | None:
+    """Value of the first NameProperty/StrProperty called ``name`` in a UE 5.4+ save."""
+    key = fstring(name)
+    i = b.find(key, start)
+    while i >= 0:
+        try:
+            typ, o = read_fstring(b, i + len(key))
+            if typ in ('NameProperty', 'StrProperty') and struct.unpack_from('<i', b, o)[0] == 0:
+                value, _ = read_fstring(b, o + 9)
+                return value
+        except (struct.error, UnicodeDecodeError, IndexError):
+            pass
+        i = b.find(key, i + 1)
+    return None
 
 
 def replace_value(b: bytes, p: Prop, value: bytes) -> bytes:

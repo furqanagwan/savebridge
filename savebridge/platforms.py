@@ -99,14 +99,17 @@ def active_steam_user() -> int | None:
 def xbox_accounts(package_prefix: str) -> list[XboxAccount]:
     """One per Xbox profile that has run the game (a wgs/<XUID>_<SCID> folder)."""
     out = []
-    for pkg in sorted((LOCALAPPDATA / 'Packages').glob(package_prefix + '*')):
+    packages = long_path(LOCALAPPDATA / 'Packages')
+    if not packages.is_dir():
+        return out
+    for pkg in sorted(packages.glob(package_prefix + '*')):
         wgs = pkg / 'SystemAppData' / 'wgs'
         if not wgs.is_dir():
             continue
         for d in sorted(wgs.iterdir()):
             m = re.fullmatch(r'([0-9A-Fa-f]{16})_[0-9A-Fa-f]+', d.name)
             if m and (d / 'containers.index').is_file():
-                out.append(XboxAccount(int(m.group(1), 16), d))
+                out.append(XboxAccount(int(m.group(1), 16), Path(str(d).removeprefix('\\\\?\\'))))
     return out
 
 

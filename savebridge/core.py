@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import datetime as dt
+import os
 import re
 import zipfile
 from dataclasses import dataclass
@@ -160,28 +161,61 @@ def resolve(game: Game, platform: str, steam: str | None, xbox: str | None) -> T
 
 # ---- importing arbitrary files -----------------------------------------------
 
+def _display(p) -> str:
+    return str(p).removeprefix('\\\\?\\')
+
+
+def _iter_wgs(store_dir: Path):
+    """Blobs of an Xbox save folder, named <folder>/<container>/<blob>."""
+    store = WgsStore(store_dir)
+    for e in store.live_entries():
+        try:
+            blobs = store.read_blobs(e)
+        except (WgsError, OSError):
+            continue
+        for blob, data in blobs.items():
+            yield _display(store_dir), f'{_display(store_dir)}/{e.name}/{blob}', data
+
+
 def _iter_files(paths: list[Path]):
+    """(group, name, bytes) for every candidate file. A group is the folder a save set lives in."""
     for path in paths:
         if path.is_dir():
-            for p in sorted(path.rglob('*')):
-                if p.is_file():
-                    yield from _iter_files([p])
+            if (path / 'containers.index').is_file():
+                yield from _iter_wgs(path)
+                continue
+            for dirpath, dirnames, filenames in os.walk(path):
+                d = Path(dirpath)
+                if (d / 'containers.index').is_file():
+                    dirnames.clear()
+                    yield from _iter_wgs(d)
+                    continue
+                for f in sorted(filenames):
+                    p = d / f
+                    if p.stat().st_size <= MAX_IMPORT_FILE:
+                        yield _display(d), _display(p), p.read_bytes()
         elif zipfile.is_zipfile(path):
             with zipfile.ZipFile(path) as z:
                 for info in z.infolist():
                     if not info.is_dir() and info.file_size <= MAX_IMPORT_FILE:
-                        yield f'{path.name}:{info.filename}', z.read(info)
+                        parent = info.filename.rpartition('/')[0]
+                        yield (f'{path.name}:{parent}', f'{path.name}:{info.filename}',
+                               z.read(info))
         elif path.is_file():
             if path.stat().st_size <= MAX_IMPORT_FILE:
-                yield str(path), path.read_bytes()
+                yield _display(path.parent), _display(path), path.read_bytes()
         else:
-            raise SaveError(f'not found: {path}')
+            raise SaveError(f'not found: {_display(path)}')
 
 
 def scan(game: Game, paths: list[Path], strict: bool = True) -> ReadResult:
-    """Find saves for ``game`` among any files, folders or zips, from either platform."""
-    found, warnings = [], []
-    for name, data in _iter_files(paths):
+    """Find saves for ``game`` among any files, folders or zips, from either platform.
+
+    Refuses input holding saves from more than one folder: a download often
+    bundles several save sets, and mixing their files would corrupt the save.
+    """
+    found, warnings, groups = [], [], {}
+    for group, name, data in _iter_files(paths):
         try:
             s = game.identify(data, name, strict)
         except SaveError as e:
@@ -189,6 +223,11 @@ def scan(game: Game, paths: list[Path], strict: bool = True) -> ReadResult:
             continue
         if s is not None:
             found.append(s)
+            groups.setdefault(group, []).append(s.key)
+    if len(groups) > 1:
+        listing = '\n  '.join(f'{g}  ({", ".join(sorted(set(k)))})' for g, k in sorted(groups.items()))
+        raise SaveError(f'found saves in {len(groups)} different folders; import one at a time:'
+                        f'\n  {listing}')
     r = game.collect(found)
     r.warnings[:0] = warnings
     return r

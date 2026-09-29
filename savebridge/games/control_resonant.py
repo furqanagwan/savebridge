@@ -151,6 +151,9 @@ class ControlResonant(Game):
 
     def identify(self, data: bytes, name: str, strict: bool = True) -> Save | None:
         folder, _, filename = name.replace('\\', '/').rpartition('/')
+        parent, _, container = folder.rpartition('/')
+        if CONTAINER.fullmatch(container):  # a blob from an Xbox save folder
+            folder, filename = parent, f'{container}_{filename}'
         m = STEAM_FILE.fullmatch(filename)
         if not m or (m.group(1) != PREFERENCES and data[:4] != MAGIC):
             return None

@@ -15,6 +15,7 @@ importing saves from other accounts into either platform.
 | `mgs-delta` | METAL GEAR SOLID Δ: SNAKE EATER | 2417610 | `KonamiDigitalEntertainmen.RG5` | ✅ verified in game | ✅ tested on real saves* |
 | `destroy-all-humans` (`dah`) | Destroy All Humans! (2020) | 803330 | `NordicGames.DestroyAllHumans` | ✅ verified in game | ✅ same files† |
 | `control-resonant` (`control`) | CONTROL Resonant (Play Anywhere) | 3669870 | `Remedy.CONTROLResonant` | ✅ verified in game | 🧪 tested on synthetic saves |
+| `samson` | Samson: A Tyndalston Story | 3634520 | `29692LiquidSwords.CriminalJustice` | 🧪 written, awaiting in-game check | 🧪 tested on synthetic saves |
 
 \* Converted and verified byte-for-byte against real save files; not yet
 loaded in the Steam build.
@@ -143,7 +144,27 @@ Importing `preferences` keeps the target's settings and takes only the continue
 pointer. This is a **Play Anywhere** title: anything written to Xbox syncs to
 Xbox consoles on the same account.
 
+### Samson: A Tyndalston Story
+
+Unreal Engine 5.7 on both stores, identical GVAS files and custom-version
+tables, no checksum, no account ID. The most common Unreal layout: one `.sav`
+per Xbox container, same bytes, blob `Data`.
+
+| File (`%LOCALAPPDATA%\Samson\Saved\SaveGames\`, per PC) | Xbox container | Copied |
+|---|---|---|
+| `SaveGame.sav`, `SaveGame_Checkpoint_StartOfDay.sav`, `SaveGameManifest.sav` | same names | always, and only together |
+| `SharedGameSettings.sav`, `EnhancedInputUserSettings.sav` | same names | with `--all` |
+
+There is a single save slot. Downloads often bundle several save sets; the
+importer refuses a folder holding more than one, so point it at the one you want.
+
 ## Adding a game
+
+Most Unreal Engine games store one `.sav` per Xbox container. For those,
+subclass `UnrealFilesGame` (`games/unreal_files.py`) and list the files, as
+`games/samson.py` does; that's usually all it takes.
+
+Otherwise:
 
 1. Create `savebridge/games/<game>.py` with a `Game` subclass (see
    `games/base.py` for the contract; `games/mgs_delta.py` is an Xbox cloud save
@@ -160,7 +181,9 @@ Xbox consoles on the same account.
 3. Add tests with synthetic saves under `tests/`. Don't commit real save files.
 
 Shared helpers: `savebridge/wgs.py` (Xbox cloud save containers, including
-multi-blob) and `savebridge/unreal.py` (reading and patching UE4 GVAS saves).
+multi-blob) and `savebridge/unreal.py` (reading and patching UE4/UE5 GVAS saves).
+`import` accepts a raw Xbox save folder (`...\SystemAppData\wgs\<XUID>_<id>`)
+as well as Steam files; blobs are named `<container>/<blob>` for `identify`.
 
 ## Tests
 

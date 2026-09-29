@@ -60,11 +60,12 @@ def _print_plan(game: Game, saves: list[Save], dest: Target) -> None:
         existing = dest.read().saves
     except (SaveError, WgsError, OSError):
         existing = {}
+    width = max([len(s.key) for s in saves] + [10])
     for s in saves:
-        note = ''
+        print(f'  {s.key:<{width}}  {game.describe(s)}')
+        print(f'  {"":<{width}}  from {s.source}')
         if s.key in existing:
-            note = f'  replaces {game.describe(existing[s.key])}'
-        print(f'  {s.key:<14} {game.describe(s):<30} from {s.source}{note}')
+            print(f'  {"":<{width}}  replaces {game.describe(existing[s.key])}')
 
 
 def _write(game: Game, saves: list[Save], dest: Target, args) -> int:
@@ -146,10 +147,12 @@ def cmd_list(args) -> int:
             print(f'  warning: {w}')
         tables[platform] = r.saves
     keys = sorted(set(tables['steam']) | set(tables['xbox']), key=game.key_order)
-    print(f'\n{"save":<14} {"Steam":<30} {"Xbox":<30}')
-    for k in keys:
-        cells = [game.describe(tables[p][k]) if k in tables[p] else '-' for p in ('steam', 'xbox')]
-        print(f'{k:<14} {cells[0]:<30} {cells[1]:<30}')
+    rows = [(k, *[game.describe(tables[p][k]) if k in tables[p] else '-' for p in ('steam', 'xbox')])
+            for k in keys]
+    w = [max([len(r[i]) for r in rows] + [len(h)]) for i, h in enumerate(('save', 'Steam', 'Xbox'))]
+    print(f'\n{"save":<{w[0]}}  {"Steam":<{w[1]}}  Xbox')
+    for k, s, x in rows:
+        print(f'{k:<{w[0]}}  {s:<{w[1]}}  {x}')
     return 0
 
 
