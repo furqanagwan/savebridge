@@ -116,6 +116,18 @@ class Game(ABC):
     # Several logical saves share one container: writing one keeps the others' blobs.
     xbox_keep_other_blobs: bool = False
 
+    def xbox_stale_blobs(self, save: Save) -> tuple[str, ...]:
+        """Blobs to delete from the container when ``save`` is written (e.g. its old checkpoint)."""
+        return ()
+
+    def xbox_mirror(self, account: Account, container: str) -> Path | None:
+        """A folder where the game keeps its own copy of ``container``'s files, if any."""
+        return None
+
+    def xbox_mirror_dirs(self, account: Account) -> list[Path]:
+        """All such folders, for backups."""
+        return []
+
     def decode_xbox_all(self, container: str, blobs: dict[str, bytes]) -> list[Save]:
         """All logical saves in a container. Default: one, if xbox_key knows the container."""
         if self.xbox_key(container) is None:

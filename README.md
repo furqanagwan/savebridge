@@ -18,6 +18,10 @@ importing saves from other accounts into either platform.
 | `samson` | Samson: A Tyndalston Story | 3634520 | `29692LiquidSwords.CriminalJustice` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `dawnwalker` | The Blood of Dawnwalker | 3751260 | `NAMCOBANDAIGamesInc.TheBloodofDawnwalker` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `black-ops-2` (`bo2`) | Call of Duty: Black Ops II — campaign | 202970 | `38985CA0.CallofDutyBlackOps2PCMS` | ✅ verified in game | 🧪 tested on synthetic saves |
+| `ghosts` | Call of Duty: Ghosts — campaign | 209160 | `38985CA0.CallofDutyGhostsPCMS` | ⚠️ save loads; mission unlocks are in the profile‡ | 🧪 tested on synthetic saves |
+
+‡ Ghosts' `savegame.svg` is only the Continue point. Mission select reads the
+profile (`settings_s.zip.iw6`), which Steam downloads usually don't include.
 
 \* Converted and verified byte-for-byte against real save files; not yet
 loaded in the Steam build.
@@ -194,6 +198,22 @@ it only sees 1280×720. Setting "Override high DPI scaling → Application"
 (`~ HIGHDPIAWARE` under `HKCU\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers`)
 for `t6sp.exe`, `t6mp.exe` and `t6zm.exe` in `C:\XboxGames\Call of Duty Black Ops 2\Content\`
 makes 3840×2160 available.
+
+### Call of Duty: Ghosts (campaign)
+
+| | Steam | Xbox |
+|---|---|---|
+| Location | `<Steam library>\steamapps\common\Call of Duty Ghosts\players2\` | WGS container `Gamerprofile_gdk`, **plus** the game's own copy in `<drive>:\XboxGames\Call of Duty Ghosts\Content\players2\<decimal XUID>\`; both are written together |
+| Continue point | `savegame.svg` (IW6, version `0x47`, level name at offset 32; no owner ID or checksum found) | same, plus `save\internal/snd_restart.svg` (restart point, removed when the save is replaced) |
+| Profile | `settings_s.zip.iw6` | same |
+
+The profile is a `SEMV` file: 12-byte header, then 43 fields of
+`id, type, value` (type 1 bool, 2 byte, 4 int32, 6 string: 4 bytes then
+NUL-terminated text), no checksum. Field `0x29` is a 50-digit string, one digit
+per campaign level in story order (prologue … skyway); non-zero marks the
+mission complete and unlocks it in mission select (verified). Field `0x2a` is
+another per-mission string whose meaning is unknown (it is not the Rorke Files).
+Field `0x2b` names the save Continue loads. Editing the profile isn't automated.
 
 ## Adding a game
 

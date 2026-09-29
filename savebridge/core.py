@@ -104,8 +104,25 @@ class Target:
                 keep = self.game.xbox_keep_other_blobs and name in live
                 changes[name] = self._blobs(store, live[name]) if keep else {}
             changes[name].update(self.game.encode_xbox(s))
+            for stale in self.game.xbox_stale_blobs(s):
+                changes[name].pop(stale, None)
             reserved[name] = self.game.xbox_reserved(s.key)
         store.write(changes, reserved)
+        for name, blobs in changes.items():
+            mirror = self.game.xbox_mirror(self.account, name)
+            if mirror is None:
+                continue
+            # Some games also keep their own copy of the container's files on disk.
+            mirror = long_path(mirror)
+            for s in saves:
+                for stale in self.game.xbox_stale_blobs(s):
+                    (mirror / stale.replace('\\', '/')).unlink(missing_ok=True)
+            for blob, data in blobs.items():
+                p = mirror / blob.replace('\\', '/')
+                p.parent.mkdir(parents=True, exist_ok=True)
+                tmp = p.with_name(p.name + '.savebridge-tmp')
+                tmp.write_bytes(data)
+                os.replace(tmp, p)
         if self.xgs_path:
             for name, blobs in changes.items():
                 folder = self.xgs_path / name
@@ -272,5 +289,9 @@ def ensure_game_closed(game: Game) -> None:
 
 def backup_target(t: Target) -> Path | None:
     who = getattr(t.account, 'steamid64', None) or getattr(t.account, 'xuid', None) or 'pc'
-    extra = {'xgs': t.xgs_path} if t.xgs_path else None
-    return backup(t.path, t.game.id, f'{t.platform}-{who}', extra)
+    extra = {'xgs': t.xgs_path} if t.xgs_path else {}
+    if t.uses_wgs:
+        for i, d in enumerate(t.game.xbox_mirror_dirs(t.account)):
+            if long_path(d).is_dir():
+                extra[f'mirror{i}'] = d
+    return backup(t.path, t.game.id, f'{t.platform}-{who}', extra or None)

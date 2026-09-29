@@ -94,6 +94,18 @@ def steam_game_dir(install_dir: str) -> Path | None:
     return root / 'steamapps' / 'common' / install_dir
 
 
+def xbox_game_content(folder: str) -> Path | None:
+    """<drive>:/XboxGames/<folder>/Content, on whichever drive the game is installed."""
+    for letter in 'CDEFGHIJKLMNOPQRSTUVWXYZ':
+        p = Path(f'{letter}:/XboxGames') / folder / 'Content'
+        try:
+            if p.is_dir():
+                return p
+        except OSError:
+            continue
+    return None
+
+
 def steam_users() -> list[SteamAccount]:
     """Accounts that have signed in to Steam on this PC."""
     root = steam_install()
