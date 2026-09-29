@@ -16,7 +16,7 @@ importing saves from other accounts into either platform.
 | `destroy-all-humans` (`dah`) | Destroy All Humans! (2020) | 803330 | `NordicGames.DestroyAllHumans` | ✅ verified in game | ✅ same files† |
 | `control-resonant` (`control`) | CONTROL Resonant (Play Anywhere) | 3669870 | `Remedy.CONTROLResonant` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `samson` | Samson: A Tyndalston Story | 3634520 | `29692LiquidSwords.CriminalJustice` | ✅ verified in game | 🧪 tested on synthetic saves |
-| `dawnwalker` | The Blood of Dawnwalker | 3751260 | `NAMCOBANDAIGamesInc.TheBloodofDawnwalker` | 🧪 written, awaiting in-game check | 🧪 tested on synthetic saves |
+| `dawnwalker` | The Blood of Dawnwalker | 3751260 | `NAMCOBANDAIGamesInc.TheBloodofDawnwalker` | ✅ verified in game | 🧪 tested on synthetic saves |
 
 \* Converted and verified byte-for-byte against real save files; not yet
 loaded in the Steam build.
