@@ -16,6 +16,7 @@ importing saves from other accounts into either platform.
 | `destroy-all-humans` (`dah`) | Destroy All Humans! (2020) | 803330 | `NordicGames.DestroyAllHumans` | ✅ verified in game | ✅ same files† |
 | `control-resonant` (`control`) | CONTROL Resonant (Play Anywhere) | 3669870 | `Remedy.CONTROLResonant` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `samson` | Samson: A Tyndalston Story | 3634520 | `29692LiquidSwords.CriminalJustice` | ✅ verified in game | 🧪 tested on synthetic saves |
+| `dawnwalker` | The Blood of Dawnwalker | 3751260 | `NAMCOBANDAIGamesInc.TheBloodofDawnwalker` | 🧪 written, awaiting in-game check | 🧪 tested on synthetic saves |
 
 \* Converted and verified byte-for-byte against real save files; not yet
 loaded in the Steam build.
@@ -157,6 +158,22 @@ per Xbox container, same bytes, blob `Data`.
 
 There is a single save slot. Downloads often bundle several save sets; the
 importer refuses a folder holding more than one, so point it at the one you want.
+
+### The Blood of Dawnwalker
+
+Each save is three files with the same bytes on both stores; no account ID.
+
+| Steam (`%LOCALAPPDATA%\Dawnwalker\Saved\SaveGames\`, per PC) | Xbox container `<Name>` | Contents |
+|---|---|---|
+| `<Name>.sav` | blob `Data` | game state (Rebel Wolves' chunked `DSAV` format) |
+| `<Name>.meta` | blob `Meta` | JSON shown in the load menu: day, play time, date, build, and `SaveName`/`Type`/`TypeString` |
+| `<Name>.png` | blob `SaveIcon` | screenshot |
+
+`<Name>` is `ManualSave<N>`, `Autosave<N>` or `FinalAutosave`. The `.sav` doesn't
+record its slot, so `--slot-map` moves a save by rewriting just those three
+meta fields. To add a downloaded save without overwriting yours, map it to a
+free manual slot, e.g. `--slot-map 18:31`. The Xbox-only `RebelSettings`
+container is left alone.
 
 ## Adding a game
 
