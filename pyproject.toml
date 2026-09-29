@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "savebridge"
+version = "0.1.0"
+description = "Move PC game saves between Steam and Xbox PC, and between accounts."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+savebridge = "savebridge.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["savebridge*"]
