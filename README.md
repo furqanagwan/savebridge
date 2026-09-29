@@ -21,6 +21,7 @@ importing saves from other accounts into either platform.
 | `ghosts` | Call of Duty: Ghosts — campaign | 209160 | `38985CA0.CallofDutyGhostsPCMS` | ⚠️ save loads; mission unlocks are in the profile‡ | 🧪 tested on synthetic saves |
 
 | `kcd2` | Kingdom Come: Deliverance II | 1771300 | `DeepSilver.77536C3FE941` | ✅ verified in game | 🧪 tested on synthetic saves |
+| `crimson-desert` | Crimson Desert | 3321460 | `PearlAbyss.CrimsonDesert` | ✅ verified in game | 🧪 tested on synthetic saves |
 
 ‡ Ghosts' `savegame.svg` is only the Continue point. Mission select reads the
 profile (`settings_s.zip.iw6`), which Steam downloads usually don't include.
@@ -237,6 +238,19 @@ only some of them:
 ```powershell
 python -m savebridge import kcd2 C:\Downloads\playline0_saves --to xbox --files newest --slot-map 0:1
 ```
+
+### Crimson Desert
+
+| | Steam | Xbox |
+|---|---|---|
+| Location | `%LOCALAPPDATA%\Pearl Abyss\CD\save\<SteamID64>\slot<N>\lobby.save`, `save.save` | container `slot<N>`, blobs `lobby`, `save` |
+
+Both files are `SAVE` v2: a 0x80-byte header (flags, decompressed and stored
+sizes, ChaCha20 nonce, HMAC-SHA256) and an LZ4-compressed, ChaCha20-encrypted
+body. The key is a built-in constant mixed with the header version
+([pycrimson](https://github.com/LukeFZ/pycrimson)), not the account or
+platform, so files copy byte-for-byte. They don't record their slot number, so
+`--slot-map` moves a save freely. Slots 0-2 are manual, 100 and up automatic.
 
 ## Adding a game
 
