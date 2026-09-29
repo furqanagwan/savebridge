@@ -32,6 +32,17 @@ class XboxAccount:
         return f'{self.xuid} ({self.folder.name})'
 
 
+@dataclass(frozen=True)
+class LocalAccount:
+    """For games that keep one set of saves per PC rather than per account."""
+
+    def __str__(self) -> str:
+        return 'this PC (saves are not per account)'
+
+
+Account = SteamAccount | XboxAccount | LocalAccount
+
+
 def parse_steam_id(text: str) -> int:
     """Accept a SteamID64, a 32-bit account ID, or [U:1:n]."""
     m = re.fullmatch(r'\[?U:1:(\d+)\]?', text.strip())

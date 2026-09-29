@@ -1,14 +1,17 @@
 """Registry of supported games. To add one, subclass ``Game`` and list it here."""
 
 from .base import Game, ReadResult, Save, SaveError
+from .destroy_all_humans import DestroyAllHumans
 from .mgs_delta import MgsDelta
 
-GAMES: dict[str, Game] = {g.id: g for g in (MgsDelta(),)}
+GAMES: dict[str, Game] = {g.id: g for g in (MgsDelta(), DestroyAllHumans())}
 
 ALIASES = {
     'mgs3': 'mgs-delta',
     'mgsdelta': 'mgs-delta',
     'snake-eater': 'mgs-delta',
+    'dah': 'destroy-all-humans',
+    'dah1': 'destroy-all-humans',
 }
 
 

@@ -13,9 +13,16 @@ importing saves from other accounts into either platform.
 | id | Game | Steam app | Xbox package | Steam → Xbox | Xbox → Steam |
 |---|---|---|---|---|---|
 | `mgs-delta` | METAL GEAR SOLID Δ: SNAKE EATER | 2417610 | `KonamiDigitalEntertainmen.RG5` | ✅ verified in game | ✅ tested on real saves* |
+| `destroy-all-humans` (`dah`) | Destroy All Humans! (2020) | 803330 | `NordicGames.DestroyAllHumans` | ✅ verified in game | ✅ same files† |
 
 \* Converted and verified byte-for-byte against real save files; not yet
 loaded in the Steam build.
+† Both builds write identical files to the same folder, so a save from either
+works in both; use `import` to bring saves in from elsewhere.
+
+Not supported: Destroy All Humans! 2 – Reprobed. It uses the same save classes
+but a newer engine, and Destroy All Humans! (2020) hangs if given one of its
+saves, so `import dah` refuses them.
 
 ## Usage
 
@@ -39,6 +46,11 @@ python -m savebridge import mgs-delta C:\Downloads\save --to steam --slot-map 1:
 
 # Share yours
 python -m savebridge export mgs-delta --from xbox --out C:\Temp\my-saves
+
+# Destroy All Humans!: a downloaded save into the Xbox version
+python -m savebridge import dah C:\Downloads\DH.zip --to xbox --dry-run
+python -m savebridge import dah C:\Downloads\DH.zip --to xbox
+python -m savebridge import dah C:\Downloads\DH.zip --to xbox --slot-map 1:2   # as DevAutoSave_2
 ```
 
 Options shared by the commands that write:
@@ -95,20 +107,39 @@ No account ID is stored in the save.
 
 `LocalUserSettings` (graphics, per machine) is left alone.
 
+### Destroy All Humans! (2020)
+
+Steam and Xbox run the same build (Unreal Engine 4.22.3) and write plain GVAS
+files with identical headers, no checksum and no account ID, to the same
+per-PC folder. The Xbox build does not use Xbox cloud saves.
+
+| File in `%LOCALAPPDATA%\DH\Saved\SaveGames\` | Class | Contents |
+|---|---|---|
+| `DevAutoSave_<N>.sav` | `BFGCore.BFGSaveGame` | progress; key `DevAutoSave_<N>` |
+| `SaveOptions.sav` | `BFGCore.BFGSaveOptions` | settings, key bindings, unlocked skins, last used save; key `options` |
+
+Importing `options` merges instead of replacing it: your settings stay, the
+unlocked skins (`m_profileUnlockTags`) are combined, and "last used save" points
+at the newest imported save so Continue loads it.
+
 ## Adding a game
 
 1. Create `savebridge/games/<game>.py` with a `Game` subclass (see
-   `games/base.py` for the contract and `games/mgs_delta.py` for an example):
-   - `steam_dir(account)`: where that Steam account's saves live
-   - `read_steam` / `write_steam`: Steam files <-> logical saves
-   - `xbox_key` / `xbox_container` / `decode_xbox` / `encode_xbox`: WGS containers <-> logical saves
-   - `identify(data, name)`: recognise a loose file from either platform (powers `import`)
-   - optional: `remap` (slot moves), `rebind` (games that embed a SteamID/XUID in the save)
+   `games/base.py` for the contract; `games/mgs_delta.py` is an Xbox cloud save
+   example and `games/destroy_all_humans.py` a plain-file one):
+   - `save_dir(platform, account)`, `read_files` / `write_files`: save files <-> logical saves
+   - if the Xbox build uses Xbox cloud saves (`xbox_uses_wgs = True`, the default):
+     `xbox_key` / `xbox_container` / `decode_xbox` / `encode_xbox`
+   - `steam_per_account = False` if saves are per PC rather than per SteamID
+   - `identify(data, name)`: recognise a loose file from either platform (powers
+     `import`); refuse lookalike saves from other games here
+   - optional: `prepare` (merge with the target's existing saves), `remap` (slot
+     moves), `rebind` (games that embed a SteamID/XUID in the save), `slot_key`
 2. Register it in `savebridge/games/__init__.py`.
 3. Add tests with synthetic saves under `tests/`. Don't commit real save files.
 
-The WGS container format itself (`savebridge/wgs.py`) is shared by every Xbox PC
-game and supports multi-blob containers.
+Shared helpers: `savebridge/wgs.py` (Xbox cloud save containers, including
+multi-blob) and `savebridge/unreal.py` (reading and patching UE4 GVAS saves).
 
 ## Tests
 

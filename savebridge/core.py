@@ -9,9 +9,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from .games import Game, ReadResult, Save, SaveError
-from .platforms import (SteamAccount, XboxAccount, active_steam_user, backup, long_path,
-                        parse_steam_id, parse_xuid, running_processes, steam_users,
-                        xbox_accounts)
+from .platforms import (Account, LocalAccount, SteamAccount, active_steam_user, backup,
+                        long_path, parse_steam_id, parse_xuid, running_processes,
+                        steam_users, xbox_accounts)
 from .wgs import WgsError, WgsStore
 
 MAX_IMPORT_FILE = 64 * 1024 * 1024
@@ -22,26 +22,32 @@ class Target:
     """One account's save location for one game on one platform."""
     game: Game
     platform: str  # 'steam' or 'xbox'
-    account: SteamAccount | XboxAccount
+    account: Account
+
+    @property
+    def uses_wgs(self) -> bool:
+        return self.platform == 'xbox' and self.game.xbox_uses_wgs
 
     @property
     def path(self) -> Path:
-        if self.platform == 'steam':
-            return self.game.steam_dir(self.account)
-        return self.account.folder
+        if self.uses_wgs:
+            return self.account.folder
+        return self.game.save_dir(self.platform, self.account)
 
     @property
     def io_path(self) -> Path:
         return long_path(self.path)
 
     def __str__(self) -> str:
-        return f'{self.platform.capitalize()} account {self.account}'
+        return f'{self.platform.capitalize()}: {self.account}'
 
     # ---- read ---------------------------------------------------------------
 
     def read(self) -> ReadResult:
-        if self.platform == 'steam':
-            return self.game.read_steam(self.io_path) if self.io_path.is_dir() else ReadResult()
+        if not self.uses_wgs:
+            if not self.io_path.is_dir():
+                return ReadResult()
+            return self.game.read_files(self.platform, self.io_path)
         r = ReadResult()
         store = WgsStore(self.io_path)
         for e in store.live_entries():
@@ -58,11 +64,20 @@ class Target:
 
     # ---- write --------------------------------------------------------------
 
+    def prepare(self, saves: list[Save]) -> list[Save]:
+        """What will actually be written: merged with existing saves, rebound to this account."""
+        try:
+            existing = self.read().saves
+        except (SaveError, WgsError, OSError):
+            existing = {}
+        saves = self.game.prepare(saves, existing)
+        return [self.game.rebind(s, self.account) for s in saves]
+
     def write(self, saves: list[Save]) -> None:
-        saves = [self.game.rebind(s, self.account) for s in saves]
-        if self.platform == 'steam':
+        """Write already-prepared saves."""
+        if not self.uses_wgs:
             for s in saves:
-                self.game.write_steam(self.io_path, s)
+                self.game.write_files(self.platform, self.io_path, s)
             return
         store = WgsStore(self.io_path)
         existing = [e.name for e in store.live_entries()]
@@ -86,7 +101,7 @@ class Target:
 def steam_candidates(game: Game) -> list[SteamAccount]:
     """Steam accounts signed in on this PC, plus any with saves on disk."""
     known = {a.steamid64: a for a in steam_users()}
-    parent = game.steam_dir(SteamAccount(0)).parent
+    parent = game.save_dir('steam', SteamAccount(0)).parent
     if parent.is_dir():
         for d in parent.iterdir():
             if d.is_dir() and re.fullmatch(r'\d{17}', d.name):
@@ -94,12 +109,14 @@ def steam_candidates(game: Game) -> list[SteamAccount]:
     return sorted(known.values(), key=lambda a: a.steamid64)
 
 
-def resolve_steam(game: Game, wanted: str | None) -> SteamAccount:
+def resolve_steam(game: Game, wanted: str | None) -> Account:
+    if not game.steam_per_account:
+        return LocalAccount()
     cands = steam_candidates(game)
     if wanted:
         sid = parse_steam_id(wanted)
         return next((a for a in cands if a.steamid64 == sid), SteamAccount(sid))
-    with_saves = [a for a in cands if game.steam_dir(a).is_dir()]
+    with_saves = [a for a in cands if game.save_dir('steam', a).is_dir()]
     active = active_steam_user()
     for pool in (cands, with_saves):
         hit = next((a for a in pool if a.steamid64 == active), None)
@@ -115,7 +132,9 @@ def resolve_steam(game: Game, wanted: str | None) -> SteamAccount:
     raise SaveError(f'several Steam accounts found, pick one with --steam-account:\n  {listing}')
 
 
-def resolve_xbox(game: Game, wanted: str | None) -> XboxAccount:
+def resolve_xbox(game: Game, wanted: str | None) -> Account:
+    if not game.xbox_uses_wgs:
+        return LocalAccount()
     cands = xbox_accounts(game.xbox_package_prefix)
     if wanted:
         xuid = parse_xuid(wanted)
@@ -183,4 +202,5 @@ def ensure_game_closed(game: Game) -> None:
 
 
 def backup_target(t: Target) -> Path | None:
-    return backup(t.path, t.game.id, f'{t.platform}-{getattr(t.account, "steamid64", None) or t.account.xuid}')
+    who = getattr(t.account, 'steamid64', None) or getattr(t.account, 'xuid', None) or 'pc'
+    return backup(t.path, t.game.id, f'{t.platform}-{who}')

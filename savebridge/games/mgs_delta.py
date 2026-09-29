@@ -30,7 +30,7 @@ import struct
 from pathlib import Path
 
 from ..cityhash import cityhash64, rotr
-from ..platforms import LOCALAPPDATA, SteamAccount
+from ..platforms import LOCALAPPDATA, Account
 from .base import Game, ReadResult, Save, SaveError
 
 MAGIC = 0xD42AEE521DA13C62
@@ -147,7 +147,8 @@ class MgsDelta(Game):
 
     # ---- Steam --------------------------------------------------------------
 
-    def steam_dir(self, account: SteamAccount) -> Path:
+    def save_dir(self, platform: str, account: Account) -> Path:
+        # The Xbox build uses WGS containers, so this is only asked for Steam.
         return LOCALAPPDATA / 'MGSDelta' / 'Saved' / 'SaveGames' / str(account.steamid64)
 
     @staticmethod
@@ -162,7 +163,7 @@ class MgsDelta(Game):
             return f'slot{int(m.group(1))}'
         return next((k for k, v in SPECIAL.items() if v[0] == stem), None)
 
-    def read_steam(self, root: Path) -> ReadResult:
+    def read_files(self, platform: str, root: Path) -> ReadResult:
         r = ReadResult()
         for p in sorted(root.glob('*.sav')):
             m = re.fullmatch(r'(.+)_([01])\.sav', p.name)
@@ -178,7 +179,7 @@ class MgsDelta(Game):
             r.offer(s, (s.created or dt.datetime.min, p.stat().st_mtime))
         return r
 
-    def write_steam(self, root: Path, save: Save) -> None:
+    def write_files(self, platform: str, root: Path, save: Save) -> None:
         data = wrap(save.parts[BLOB], STEAM_VERSION)
         root.mkdir(parents=True, exist_ok=True)
         stem = self._steam_stem(save.key)

@@ -9,7 +9,7 @@ from pathlib import Path
 from .core import (Target, backup_target, ensure_game_closed, resolve, scan,
                    steam_candidates)
 from .games import GAMES, Game, Save, SaveError, get_game
-from .platforms import active_steam_user, long_path, xbox_accounts
+from .platforms import LocalAccount, active_steam_user, long_path, xbox_accounts
 from .wgs import WgsError
 
 
@@ -17,9 +17,17 @@ def _other(platform: str) -> str:
     return 'xbox' if platform == 'steam' else 'steam'
 
 
+def _key(game: Game, text: str, known) -> str:
+    """Resolve what the user typed: a bare number is a slot, and case doesn't matter."""
+    text = text.strip()
+    if text.isdigit():
+        return game.slot_key(int(text))
+    return next((k for k in known if k.lower() == text.lower()), text)
+
+
 def _select(game: Game, saves: dict[str, Save], args) -> list[Save]:
     if args.only:
-        wanted = [k.strip().lower() for k in args.only.split(',') if k.strip()]
+        wanted = [_key(game, k, saves) for k in args.only.split(',') if k.strip()]
         missing = [k for k in wanted if k not in saves]
         if missing:
             have = ', '.join(sorted(saves, key=game.key_order)) or 'nothing'
@@ -35,12 +43,10 @@ def _apply_slot_map(game: Game, saves: list[Save], spec: str | None) -> list[Sav
     if not spec:
         return saves
     mapping = {}
+    keys = [s.key for s in saves]
     for pair in spec.split(','):
         src, _, dst = pair.partition(':')
-        src, dst = src.strip().lower(), dst.strip().lower()
-        src = src if not src.isdigit() else f'slot{src}'
-        dst = dst if not dst.isdigit() else f'slot{dst}'
-        mapping[src] = dst
+        mapping[_key(game, src, keys)] = _key(game, dst, [])
     out = [game.remap(s, mapping[s.key]) if s.key in mapping else s for s in saves]
     keys = [s.key for s in out]
     dupes = {k for k in keys if keys.count(k) > 1}
@@ -58,7 +64,7 @@ def _print_plan(game: Game, saves: list[Save], dest: Target) -> None:
         note = ''
         if s.key in existing:
             note = f'  replaces {game.describe(existing[s.key])}'
-        print(f'  {s.key:<10} {game.describe(s):<30} from {s.source}{note}')
+        print(f'  {s.key:<14} {game.describe(s):<30} from {s.source}{note}')
 
 
 def _write(game: Game, saves: list[Save], dest: Target, args) -> int:
@@ -66,6 +72,7 @@ def _write(game: Game, saves: list[Save], dest: Target, args) -> int:
         print('Nothing to copy.')
         return 1
     print(f'\nInto {dest}\n  {dest.path}\n')
+    saves = dest.prepare(saves)
     _print_plan(game, saves, dest)
     if args.dry_run:
         print('\nDry run: nothing written.')
@@ -81,8 +88,10 @@ def _write(game: Game, saves: list[Save], dest: Target, args) -> int:
     except SaveError as e:
         raise SaveError(f'{e}; restore from {bak}') from None
     print(f'Wrote and verified {len(saves)} save(s).')
-    if dest.platform == 'xbox':
+    if dest.uses_wgs:
         print('Open the game (or the Xbox app) online so the changes upload to the cloud.')
+    elif dest.platform == 'xbox':
+        print("This game's Xbox saves are local to this PC; they don't sync to the cloud.")
     else:
         print('If Steam reports a cloud conflict on the next launch, keep the local files.')
     return 0
@@ -100,17 +109,23 @@ def cmd_accounts(args) -> int:
     game = get_game(args.game)
     active = active_steam_user()
     print('Steam accounts:')
-    for a in steam_candidates(game):
+    if not game.steam_per_account:
+        print(f'  saves are per PC, in {game.save_dir("steam", LocalAccount())}')
+    for a in steam_candidates(game) if game.steam_per_account else []:
         flags = []
         if a.steamid64 == active:
             flags.append('signed in now')
-        if game.steam_dir(a).is_dir():
+        if game.save_dir('steam', a).is_dir():
             flags.append('has saves')
         print(f'  {a}' + (f'  [{", ".join(flags)}]' if flags else ''))
     print('Xbox accounts:')
-    for a in xbox_accounts(game.xbox_package_prefix) or []:
+    if not game.xbox_uses_wgs:
+        print(f'  saves are per PC, in {game.save_dir("xbox", LocalAccount())}')
+        return 0
+    found = xbox_accounts(game.xbox_package_prefix)
+    for a in found:
         print(f'  {a}')
-    if not xbox_accounts(game.xbox_package_prefix):
+    if not found:
         print('  none (launch the Xbox version once while signed in)')
     return 0
 
@@ -131,10 +146,10 @@ def cmd_list(args) -> int:
             print(f'  warning: {w}')
         tables[platform] = r.saves
     keys = sorted(set(tables['steam']) | set(tables['xbox']), key=game.key_order)
-    print(f'\n{"save":<10} {"Steam":<30} {"Xbox":<30}')
+    print(f'\n{"save":<14} {"Steam":<30} {"Xbox":<30}')
     for k in keys:
         cells = [game.describe(tables[p][k]) if k in tables[p] else '-' for p in ('steam', 'xbox')]
-        print(f'{k:<10} {cells[0]:<30} {cells[1]:<30}')
+        print(f'{k:<14} {cells[0]:<30} {cells[1]:<30}')
     return 0
 
 
@@ -143,6 +158,11 @@ def cmd_convert(args) -> int:
     src_platform = 'steam' if args.direction == 'steam-to-xbox' else 'xbox'
     src = resolve(game, src_platform, args.steam_account, args.xbox_account)
     dest = resolve(game, _other(src_platform), args.steam_account, args.xbox_account)
+    if src.path == dest.path:
+        print(f'{game.name} keeps Steam and Xbox saves in the same folder in the same '
+              f'format:\n  {src.path}\nBoth versions already see the same saves. To bring in '
+              f'saves from elsewhere use: savebridge import {game.id} <path> --to {dest.platform}')
+        return 0
     r = src.read()
     for w in r.warnings:
         print(f'warning: {w}')
@@ -173,8 +193,8 @@ def cmd_export(args) -> int:
     saves = _select(game, r.saves, args)
     out = Path(args.out)
     for s in saves:
-        game.write_steam(long_path(out), s)  # Steam's loose-file layout travels well
-        print(f'  {s.key:<10} {game.describe(s)}')
+        game.write_files('steam', long_path(out), s)  # Steam's loose-file layout travels well
+        print(f'  {s.key:<14} {game.describe(s)}')
     print(f'Exported {len(saves)} save(s) to {out}. Anyone can bring them in with '
           f'"savebridge import {game.id} <folder> --to steam|xbox".')
     return 0
