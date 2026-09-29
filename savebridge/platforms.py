@@ -77,6 +77,23 @@ def steam_install() -> Path | None:
     return default if default.is_dir() else None
 
 
+def steam_game_dir(install_dir: str) -> Path | None:
+    """steamapps/common/<install_dir> in whichever Steam library holds it."""
+    root = steam_install()
+    if root is None:
+        return None
+    libraries = [root]
+    vdf = root / 'steamapps' / 'libraryfolders.vdf'
+    if vdf.is_file():
+        text = vdf.read_text(encoding='utf-8', errors='replace')
+        libraries += [Path(p.replace('\\\\', '\\')) for p in re.findall(r'"path"\s*"([^"]+)"', text)]
+    for lib in libraries:
+        d = lib / 'steamapps' / 'common' / install_dir
+        if d.is_dir():
+            return d
+    return root / 'steamapps' / 'common' / install_dir
+
+
 def steam_users() -> list[SteamAccount]:
     """Accounts that have signed in to Steam on this PC."""
     root = steam_install()
@@ -133,8 +150,12 @@ def long_path(p: Path) -> Path:
 BACKUP_ROOT = LOCALAPPDATA / 'savebridge' / 'backups'
 
 
-def backup(src: Path, game_id: str, label: str) -> Path | None:
-    """Zip up ``src`` before it is changed. Restore by extracting over it."""
+def backup(src: Path, game_id: str, label: str,
+           extra: dict[str, Path] | None = None) -> Path | None:
+    """Zip up ``src`` before it is changed. Restore by extracting over it.
+
+    ``extra`` adds other folders under the given prefix (e.g. the xgs copy).
+    """
     src = long_path(src)
     if not src.exists():
         return None
@@ -142,7 +163,8 @@ def backup(src: Path, game_id: str, label: str) -> Path | None:
     dest = BACKUP_ROOT / game_id / f'{stamp}-{label}.zip'
     long_path(dest.parent).mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(long_path(dest), 'w', zipfile.ZIP_DEFLATED) as z:
-        for p in sorted(src.rglob('*')):
-            if p.is_file():
-                z.write(p, p.relative_to(src).as_posix())
+        for prefix, folder in [('', src)] + [(f'{k}/', long_path(v)) for k, v in (extra or {}).items()]:
+            for p in sorted(folder.rglob('*')):
+                if p.is_file():
+                    z.write(p, prefix + p.relative_to(folder).as_posix())
     return dest

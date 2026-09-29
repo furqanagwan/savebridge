@@ -113,6 +113,15 @@ class Game(ABC):
         """Value of the index entry's reserved field for new containers."""
         return 0
 
+    # Several logical saves share one container: writing one keeps the others' blobs.
+    xbox_keep_other_blobs: bool = False
+
+    def decode_xbox_all(self, container: str, blobs: dict[str, bytes]) -> list[Save]:
+        """All logical saves in a container. Default: one, if xbox_key knows the container."""
+        if self.xbox_key(container) is None:
+            return []
+        return [self.decode_xbox(container, blobs)]
+
     # ---- importing and combining ------------------------------------------
 
     @abstractmethod

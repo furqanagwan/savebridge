@@ -17,6 +17,7 @@ importing saves from other accounts into either platform.
 | `control-resonant` (`control`) | CONTROL Resonant (Play Anywhere) | 3669870 | `Remedy.CONTROLResonant` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `samson` | Samson: A Tyndalston Story | 3634520 | `29692LiquidSwords.CriminalJustice` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `dawnwalker` | The Blood of Dawnwalker | 3751260 | `NAMCOBANDAIGamesInc.TheBloodofDawnwalker` | ✅ verified in game | 🧪 tested on synthetic saves |
+| `black-ops-2` (`bo2`) | Call of Duty: Black Ops II — campaign | 202970 | `38985CA0.CallofDutyBlackOps2PCMS` | ✅ verified in game | 🧪 tested on synthetic saves |
 
 \* Converted and verified byte-for-byte against real save files; not yet
 loaded in the Steam build.
@@ -174,6 +175,25 @@ record its slot, so `--slot-map` moves a save by rewriting just those three
 meta fields. To add a downloaded save without overwriting yours, map it to a
 free manual slot, e.g. `--slot-map 18:31`. The Xbox-only `RebelSettings`
 container is left alone.
+
+### Call of Duty: Black Ops II (campaign)
+
+| | Steam | Xbox |
+|---|---|---|
+| Location | `<Steam library>\steamapps\common\Call of Duty Black Ops II\players\` | WGS container `players`, one blob per file, **plus** a plain-file copy in `SystemAppData\xgs\<XUID>_<id>\players\` that the game reads (XGameSaveFiles); both are written together |
+| Progress | `savegame.svg` (level name at offset 32), `savegame.foo` | same |
+| Settings (`--all`) | `bindings_sp.bdg`, `user_sp.cgp`, `user_common.cgp` | same |
+
+`savegame.foo` records its owner (SteamID or XUID) at offset 64 behind an
+unidentified 4-byte checksum. It is copied unchanged: the game loads saves
+owned by another account (verified on Xbox). Multiplayer and zombies have no
+local progress: ranks and stats live on Activision's servers per account.
+
+**4K on high-DPI screens:** the game isn't DPI-aware, so at 300% Windows scaling
+it only sees 1280×720. Setting "Override high DPI scaling → Application"
+(`~ HIGHDPIAWARE` under `HKCU\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers`)
+for `t6sp.exe`, `t6mp.exe` and `t6zm.exe` in `C:\XboxGames\Call of Duty Black Ops 2\Content\`
+makes 3840×2160 available.
 
 ## Adding a game
 

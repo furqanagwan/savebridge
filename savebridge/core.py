@@ -44,6 +44,21 @@ class Target:
 
     # ---- read ---------------------------------------------------------------
 
+    @property
+    def xgs_path(self) -> Path | None:
+        """The plain-file copy of the Xbox saves some games use (XGameSaveFiles), if any."""
+        if not self.uses_wgs:
+            return None
+        p = self.io_path.parent.parent / 'xgs' / self.io_path.name
+        return p if p.is_dir() else None
+
+    def _blobs(self, store: WgsStore, e) -> dict[str, bytes]:
+        """A container's blobs, from the xgs copy the game uses when there is one."""
+        mirror = self.xgs_path / e.name if self.xgs_path else None
+        if mirror and mirror.is_dir():
+            return {p.name: p.read_bytes() for p in mirror.iterdir() if p.is_file()}
+        return store.read_blobs(e)
+
     def read(self) -> ReadResult:
         if not self.uses_wgs:
             if not self.io_path.is_dir():
@@ -52,15 +67,13 @@ class Target:
         r = ReadResult()
         store = WgsStore(self.io_path)
         for e in store.live_entries():
-            key = self.game.xbox_key(e.name)
-            if key is None:
-                continue
             try:
-                s = self.game.decode_xbox(e.name, store.read_blobs(e))
+                saves = self.game.decode_xbox_all(e.name, self._blobs(store, e))
             except (SaveError, WgsError, OSError) as ex:
                 r.warnings.append(f'{e.name}: {ex}')
                 continue
-            r.offer(s, (s.created or dt.datetime.min, e.mtime))
+            for s in saves:
+                r.offer(s, (s.created or dt.datetime.min, e.mtime))
         return r
 
     # ---- write --------------------------------------------------------------
@@ -81,14 +94,29 @@ class Target:
                 self.game.write_files(self.platform, self.io_path, s)
             return
         store = WgsStore(self.io_path)
-        existing = [e.name for e in store.live_entries()]
-        changes, reserved = {}, {}
+        live = {e.name: e for e in store.live_entries()}
+        changes: dict[str, dict[str, bytes]] = {}
+        reserved = {}
         for s in saves:
-            name = self.game.xbox_container(s.key, existing)
-            changes[name] = self.game.encode_xbox(s)
+            name = self.game.xbox_container(s.key, [*live, *changes])
+            if name not in changes:
+                # Some games keep several logical saves in one container; keep the rest.
+                keep = self.game.xbox_keep_other_blobs and name in live
+                changes[name] = self._blobs(store, live[name]) if keep else {}
+            changes[name].update(self.game.encode_xbox(s))
             reserved[name] = self.game.xbox_reserved(s.key)
-            existing.append(name)
         store.write(changes, reserved)
+        if self.xgs_path:
+            for name, blobs in changes.items():
+                folder = self.xgs_path / name
+                folder.mkdir(exist_ok=True)
+                for p in folder.iterdir():
+                    if p.is_file() and p.name not in blobs:
+                        p.unlink()
+                for blob, data in blobs.items():
+                    tmp = folder / f'{blob}.savebridge-tmp'
+                    tmp.write_bytes(data)
+                    os.replace(tmp, folder / blob)
 
     def verify(self, saves: list[Save]) -> None:
         after = self.read().saves
@@ -244,4 +272,5 @@ def ensure_game_closed(game: Game) -> None:
 
 def backup_target(t: Target) -> Path | None:
     who = getattr(t.account, 'steamid64', None) or getattr(t.account, 'xuid', None) or 'pc'
-    return backup(t.path, t.game.id, f'{t.platform}-{who}')
+    extra = {'xgs': t.xgs_path} if t.xgs_path else None
+    return backup(t.path, t.game.id, f'{t.platform}-{who}', extra)

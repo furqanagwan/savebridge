@@ -1,6 +1,7 @@
 """Registry of supported games. To add one, subclass ``Game`` and list it here."""
 
 from .base import Game, ReadResult, Save, SaveError
+from .black_ops_2 import BlackOps2
 from .control_resonant import ControlResonant
 from .dawnwalker import Dawnwalker
 from .destroy_all_humans import DestroyAllHumans
@@ -8,7 +9,7 @@ from .mgs_delta import MgsDelta
 from .samson import Samson
 
 GAMES: dict[str, Game] = {g.id: g for g in (MgsDelta(), DestroyAllHumans(), ControlResonant(),
-                                             Samson(), Dawnwalker())}
+                                             Samson(), Dawnwalker(), BlackOps2())}
 
 ALIASES = {
     'mgs3': 'mgs-delta',
@@ -17,6 +18,7 @@ ALIASES = {
     'dah': 'destroy-all-humans',
     'dah1': 'destroy-all-humans',
     'control': 'control-resonant',
+    'bo2': 'black-ops-2',
 }
 
 
