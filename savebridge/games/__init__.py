@@ -10,10 +10,11 @@ from .ghosts import Ghosts
 from .kcd2 import Kcd2
 from .mgs_delta import MgsDelta
 from .samson import Samson
+from .silent_hill_2 import SilentHill2
 
 GAMES: dict[str, Game] = {g.id: g for g in (MgsDelta(), DestroyAllHumans(), ControlResonant(),
                                              Samson(), Dawnwalker(), BlackOps2(), Ghosts(), Kcd2(),
-                                             CrimsonDesert())}
+                                             CrimsonDesert(), SilentHill2())}
 
 ALIASES = {
     'mgs3': 'mgs-delta',
@@ -23,6 +24,7 @@ ALIASES = {
     'dah1': 'destroy-all-humans',
     'control': 'control-resonant',
     'bo2': 'black-ops-2',
+    'sh2': 'silent-hill-2',
 }
 
 

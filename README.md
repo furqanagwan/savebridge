@@ -22,6 +22,7 @@ importing saves from other accounts into either platform.
 
 | `kcd2` | Kingdom Come: Deliverance II | 1771300 | `DeepSilver.77536C3FE941` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `crimson-desert` | Crimson Desert | 3321460 | `PearlAbyss.CrimsonDesert` | ✅ verified in game | 🧪 tested on synthetic saves |
+| `silent-hill-2` (`sh2`) | SILENT HILL 2 (2024) | 2124490 | `KonamiDigitalEntertainmen.SILENTHILL2` | ✅ verified in game | 🧪 tested on synthetic saves |
 
 ‡ Ghosts' `savegame.svg` is only the Continue point. Mission select reads the
 profile (`settings_s.zip.iw6`), which Steam downloads usually don't include.
@@ -251,6 +252,16 @@ body. The key is a built-in constant mixed with the header version
 ([pycrimson](https://github.com/LukeFZ/pycrimson)), not the account or
 platform, so files copy byte-for-byte. They don't record their slot number, so
 `--slot-map` moves a save freely. Slots 0-2 are manual, 100 and up automatic.
+
+### SILENT HILL 2 (2024)
+
+One `.sav` per Xbox container (`%LOCALAPPDATA%\SilentHill2\Saved\SaveGames\<SteamID64>\`
+on Steam). `SaveGameData_<N>` uses the game's `VASb` wrapper: header length,
+`0xDEAD`, the `SHSaveGame` class, a save-point GUID and the map name, then a
+zlib-compressed UE 5.1 GVAS body. New Game+ and ending setup live inside each
+save; `PersistentData` only records the last slot and playthrough ID. `UcaSave`
+is the account's achievement progress (counters and flags) and, like the
+settings files, is only copied with `--all`. No account ID anywhere.
 
 ## Adding a game
 
