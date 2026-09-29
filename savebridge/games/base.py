@@ -119,6 +119,17 @@ class Game(ABC):
     def identify(self, data: bytes, name: str, strict: bool = True) -> Save | None:
         """Recognise a single file from either platform, or return None."""
 
+    def collect(self, found: list[Save]) -> ReadResult:
+        """Combine identified files into saves. Default: keep the newest copy of each key.
+
+        Games whose save spans several files return one part per file from
+        identify() and override this to reassemble them.
+        """
+        r = ReadResult()
+        for s in found:
+            r.offer(s, (s.created or dt.datetime.min,))
+        return r
+
     def prepare(self, saves: list[Save], existing: dict[str, Save]) -> list[Save]:
         """Final form of ``saves`` given what the target already holds. Default: as is."""
         return saves

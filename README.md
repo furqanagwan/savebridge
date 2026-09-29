@@ -14,6 +14,7 @@ importing saves from other accounts into either platform.
 |---|---|---|---|---|---|
 | `mgs-delta` | METAL GEAR SOLID Δ: SNAKE EATER | 2417610 | `KonamiDigitalEntertainmen.RG5` | ✅ verified in game | ✅ tested on real saves* |
 | `destroy-all-humans` (`dah`) | Destroy All Humans! (2020) | 803330 | `NordicGames.DestroyAllHumans` | ✅ verified in game | ✅ same files† |
+| `control-resonant` (`control`) | CONTROL Resonant (Play Anywhere) | 3669870 | `Remedy.CONTROLResonant` | 🧪 written, awaiting in-game check | 🧪 tested on synthetic saves |
 
 \* Converted and verified byte-for-byte against real save files; not yet
 loaded in the Steam build.
@@ -121,6 +122,26 @@ per-PC folder. The Xbox build does not use Xbox cloud saves.
 Importing `options` merges instead of replacing it: your settings stay, the
 unlocked skins (`m_profileUnlockTags`) are combined, and "last used save" points
 at the newest imported save so Continue loads it.
+
+### CONTROL Resonant
+
+Every save file is a Remedy RMDB blob with the same bytes on both platforms:
+`'RMDB'`, `u32 2`, `u32 2`, `u32 crc32(bytes 16..end)`, payload. A slot is a set
+of save points (`auto-N`, `key-<id>`, `return`), each split into `-header`
+(Unix time at offset 20 plus the area path), `-player`, `-persi-global` and
+`-bundle-container`. No account ID is stored.
+
+| | Steam | Xbox |
+|---|---|---|
+| Location | `Steam\userdata\<account id>\3669870\remote\` | WGS container per slot, one blob per file |
+| Slot 0 | `slot-0_<point>-<part>` files | container `slot-0`, blobs `<point>-<part>` |
+| Preferences | `preferences_data` (settings, raw), `preferences_savegame` (continue pointer) | container `preferences`, blobs `data`, `savegame` |
+| Achievements | (Steam's own) | container `achievements`, left alone |
+
+A slot is replaced as a whole, so save points from two playthroughs never mix.
+Importing `preferences` keeps the target's settings and takes only the continue
+pointer. This is a **Play Anywhere** title: anything written to Xbox syncs to
+Xbox consoles on the same account.
 
 ## Adding a game
 

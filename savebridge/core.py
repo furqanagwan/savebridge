@@ -180,15 +180,17 @@ def _iter_files(paths: list[Path]):
 
 def scan(game: Game, paths: list[Path], strict: bool = True) -> ReadResult:
     """Find saves for ``game`` among any files, folders or zips, from either platform."""
-    r = ReadResult()
+    found, warnings = [], []
     for name, data in _iter_files(paths):
         try:
             s = game.identify(data, name, strict)
         except SaveError as e:
-            r.warnings.append(f'{name}: {e}')
+            warnings.append(f'{name}: {e}')
             continue
         if s is not None:
-            r.offer(s, (s.created or dt.datetime.min,))
+            found.append(s)
+    r = game.collect(found)
+    r.warnings[:0] = warnings
     return r
 
 
