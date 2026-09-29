@@ -7,9 +7,15 @@ Pure Python 3.10+, no dependencies. Windows only (that's where both stores live)
 
 ## Supported games
 
-| id | Game | Steam | Xbox package |
-|---|---|---|---|
-| `mgs-delta` | METAL GEAR SOLID Δ: SNAKE EATER | 2417610 | `KonamiDigitalEntertainmen.RG5` |
+Every game supports both directions (Steam → Xbox and Xbox → Steam), plus
+importing saves from other accounts into either platform.
+
+| id | Game | Steam app | Xbox package | Steam → Xbox | Xbox → Steam |
+|---|---|---|---|---|---|
+| `mgs-delta` | METAL GEAR SOLID Δ: SNAKE EATER | 2417610 | `KonamiDigitalEntertainmen.RG5` | ✅ verified in game | ✅ tested on real saves* |
+
+\* Converted and verified byte-for-byte against real save files; not yet
+loaded in the Steam build.
 
 ## Usage
 
@@ -52,9 +58,12 @@ SteamID, a raw Xbox `wgs` folder, or a zip of either all work. They are written
 into *your* account's location with the target platform's encoding.
 
 **Xbox:** the game must have been started once on the target Xbox profile so
-its save folder exists. After writing, start the game or Xbox app online so
-the changes upload. New containers are marked "created" and updated ones
-"modified", so the Xbox app uploads them rather than restoring the cloud copy.
+its save folder exists. New containers are marked "created" and updated ones
+"modified", so they are uploaded rather than replaced by the cloud copy. The
+upload happens while the game is running: launch it online, wait at the main
+menu for a minute, and quit from the menu. `savebridge list` still works
+locally before then, but other devices won't see the saves until they upload.
+If the Xbox app asks about a conflict, keep the copy on this PC.
 
 **Steam:** if Steam Cloud reports a conflict on the next launch, keep the local
 files.
