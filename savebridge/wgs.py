@@ -9,7 +9,10 @@ Layout of %LOCALAPPDATA%/Packages/<package>/SystemAppData/wgs/<XUID>_<SCID>/:
 Write rules follow what the Xbox app expects so a local change is uploaded
 instead of overwritten by the cloud copy: never mint an ETag, mark containers
 the cloud already knows as Modified (and new ones as Created), advance the
-index FILETIME, and clear the FullyUploaded flag.
+index FILETIME, and clear the FullyUploaded flag. In each manifest, a new blob
+keeps the cloud blob id of the version the cloud holds (all zeros if it holds
+none); pointing it at the new local blob makes sync believe it's already
+uploaded and it never finishes.
 """
 
 from __future__ import annotations
@@ -112,22 +115,40 @@ class Index:
         return b''.join(out)
 
 
-def parse_manifest(b: bytes) -> dict[str, uuid.UUID]:
+NO_CLOUD_BLOB = uuid.UUID(int=0)
+
+
+@dataclass(frozen=True)
+class BlobRef:
+    """A blob as listed in a container.N manifest.
+
+    ``cloud`` names the version the cloud holds (all zeros if none) and ``disk``
+    names the local file. They are equal only once the blob has been uploaded;
+    the sync service uploads a blob when they differ. Claiming a cloud version
+    that was never uploaded leaves sync stuck.
+    """
+    cloud: uuid.UUID
+    disk: uuid.UUID
+
+
+def parse_manifest(b: bytes) -> dict[str, BlobRef]:
     _, count = struct.unpack_from('<II', b, 0)
     blobs = {}
     for i in range(count):
         o = 8 + i * BLOB_ENTRY
         name = b[o:o + 128].decode('utf-16le').rstrip('\0')
-        blobs[name] = uuid.UUID(bytes_le=b[o + 144:o + 160])  # local copy
+        blobs[name] = BlobRef(uuid.UUID(bytes_le=b[o + 128:o + 144]),
+                              uuid.UUID(bytes_le=b[o + 144:o + 160]))
     return blobs
 
 
-def build_manifest(blobs: dict[str, uuid.UUID]) -> bytes:
+def build_manifest(blobs: dict[str, BlobRef]) -> bytes:
     out = [struct.pack('<II', 4, len(blobs))]
-    for name, g in blobs.items():
+    for name, ref in blobs.items():
         if len(name) > 63:
             raise WgsError(f'blob name too long: {name}')
-        out.append(name.encode('utf-16le').ljust(128, b'\0') + g.bytes_le * 2)
+        out.append(name.encode('utf-16le').ljust(128, b'\0')
+                   + ref.cloud.bytes_le + ref.disk.bytes_le)
     return b''.join(out)
 
 
@@ -150,7 +171,7 @@ class WgsStore:
     def read_blobs(self, e: Entry) -> dict[str, bytes]:
         folder = self.root / guid_dir(e.folder)
         blobs = parse_manifest(self._manifest_path(e).read_bytes())
-        return {name: (folder / guid_dir(g)).read_bytes() for name, g in blobs.items()}
+        return {name: (folder / guid_dir(ref.disk)).read_bytes() for name, ref in blobs.items()}
 
     def write(self, changes: dict[str, dict[str, bytes]],
               reserved: dict[str, int] | None = None) -> None:
@@ -164,6 +185,7 @@ class WgsStore:
         superseded: list[Path] = []
         for name, blobs in changes.items():
             e = live.get(name)
+            previous: dict[str, BlobRef] = {}
             if e is None:
                 e = Entry(name, name, '', 0, STATE_CREATED, uuid.uuid4(), 0,
                           (reserved or {}).get(name, 0), 0)
@@ -173,16 +195,21 @@ class WgsStore:
             else:
                 old = self._manifest_path(e)
                 if old.is_file():
+                    previous = parse_manifest(old.read_bytes())
                     superseded.append(old)
-                    superseded += [old.parent / guid_dir(g)
-                                   for g in parse_manifest(old.read_bytes()).values()]
+                    superseded += [old.parent / guid_dir(ref.disk) for ref in previous.values()]
             folder = self.root / guid_dir(e.folder)
-            ids = {}
+            refs = {}
             for blob_name, data in blobs.items():
-                ids[blob_name] = uuid.uuid4()
-                (folder / guid_dir(ids[blob_name])).write_bytes(data)
+                disk = uuid.uuid4()
+                (folder / guid_dir(disk)).write_bytes(data)
+                # Keep pointing at the version the cloud really has (as the game
+                # does); a container the cloud has never seen has no cloud blob.
+                cloud = previous[blob_name].cloud if e.etag and blob_name in previous \
+                    else NO_CLOUD_BLOB
+                refs[blob_name] = BlobRef(cloud, disk)
             e.number = e.number % 255 + 1
-            (folder / f'container.{e.number}').write_bytes(build_manifest(ids))
+            (folder / f'container.{e.number}').write_bytes(build_manifest(refs))
             e.size = sum(len(d) for d in blobs.values())
             e.mtime = filetime_now()
             e.state = STATE_MODIFIED if e.etag else STATE_CREATED
