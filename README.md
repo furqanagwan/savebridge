@@ -25,6 +25,7 @@ importing saves from other accounts into either platform.
 | `silent-hill-2` (`sh2`) | SILENT HILL 2 (2024) | 2124490 | `KonamiDigitalEntertainmen.SILENTHILL2` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `ff7-remake` (`ff7`) | FINAL FANTASY VII REMAKE INTERGRADE | 1462040 | `39EA002F.EXED1` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `ff7-rebirth` (`rebirth`) | FINAL FANTASY VII REBIRTH | 2909400 | `39EA002F.EXED2` | ✅ verified in game | 🧪 tested on synthetic saves |
+| `dispatch` | Dispatch | 2592160 | `AdHocStudio.DispatchSeason1` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `mouse-pi` (`mouse`) | MOUSE: P.I. For Hire | 2416450 | `PlaySideStudiosLTD.MOUSEP.I.ForHire` | ✅ verified in game | 🧪 tested on synthetic saves |
 
 ‡ Ghosts' `savegame.svg` is only the Continue point. Mission select reads the
@@ -284,6 +285,14 @@ account has two Xbox save folders for the game, the one holding its saves is use
 but its Xbox blob is a bare zlib stream with no `bilz` header, and the game
 also reads a plain-file copy under `SystemAppData\xgs\`, which is written
 alongside the container.
+
+### Dispatch
+
+One UE 4.27 `.sav` per Xbox container (`%LOCALAPPDATA%\Dispatch\Saved\SaveGames\`
+on Steam, per PC). `SaveSlot<N>` (+ `_BACKUP`) is the save and `Index`
+(+ `_BACKUP`) records each slot's latest scene, so they travel together;
+`CloudSettings` is only copied with `--all`. Steam's `LocalOnly\<SteamID64>\*.bak`
+copies are ignored. No account ID in the files.
 
 ### MOUSE: P.I. For Hire
 

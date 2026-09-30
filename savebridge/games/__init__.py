@@ -6,6 +6,7 @@ from .control_resonant import ControlResonant
 from .crimson_desert import CrimsonDesert
 from .dawnwalker import Dawnwalker
 from .destroy_all_humans import DestroyAllHumans
+from .dispatch import Dispatch
 from .ff7_remake import Ff7Rebirth, Ff7Remake
 from .ghosts import Ghosts
 from .kcd2 import Kcd2
@@ -17,7 +18,7 @@ from .silent_hill_2 import SilentHill2
 GAMES: dict[str, Game] = {g.id: g for g in (MgsDelta(), DestroyAllHumans(), ControlResonant(),
                                              Samson(), Dawnwalker(), BlackOps2(), Ghosts(), Kcd2(),
                                              CrimsonDesert(), SilentHill2(), Ff7Remake(),
-                                             Ff7Rebirth(), MousePi())}
+                                             Ff7Rebirth(), MousePi(), Dispatch())}
 
 ALIASES = {
     'mgs3': 'mgs-delta',
