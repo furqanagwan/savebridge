@@ -19,7 +19,6 @@ importing saves from other accounts into either platform.
 | `dawnwalker` | The Blood of Dawnwalker | 3751260 | `NAMCOBANDAIGamesInc.TheBloodofDawnwalker` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `black-ops-2` (`bo2`) | Call of Duty: Black Ops II — campaign | 202970 | `38985CA0.CallofDutyBlackOps2PCMS` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `ghosts` | Call of Duty: Ghosts — campaign | 209160 | `38985CA0.CallofDutyGhostsPCMS` | ⚠️ save loads; mission unlocks are in the profile‡ | 🧪 tested on synthetic saves |
-
 | `kcd2` | Kingdom Come: Deliverance II | 1771300 | `DeepSilver.77536C3FE941` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `crimson-desert` | Crimson Desert | 3321460 | `PearlAbyss.CrimsonDesert` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `silent-hill-2` (`sh2`) | SILENT HILL 2 (2024) | 2124490 | `KonamiDigitalEntertainmen.SILENTHILL2` | ✅ verified in game | 🧪 tested on synthetic saves |
@@ -39,6 +38,65 @@ works in both; use `import` to bring saves in from elsewhere.
 Not supported: Destroy All Humans! 2 – Reprobed. It uses the same save classes
 but a newer engine, and Destroy All Humans! (2020) hangs if given one of its
 saves, so `import dah` refuses them.
+
+## Hard cases: not (yet) in savebridge
+
+### Resonance: A Plague Tale Legacy (Steam 2713000, Xbox `FocusHomeInteractiveSA.APlagueTaleFelons`): blocked
+
+Every file (`slot00`, `slot01`, `settings`, `inputprofile`) is encrypted in
+full, with no readable header, on both stores.
+
+| | Steam | Xbox |
+|---|---|---|
+| Storage | `Steam\userdata\<account>\2713000\remote\` | WGS container per file, blob `data` |
+| Cipher | AES-128-CBC, zero IV, PKCS#7; key = first 16 bytes of SHA-1(`asobo` + 24 × `3` + `asobo`)¹ | AES-sized blocks (multiples of 16), **unknown key** |
+| Decrypts with the Steam key | ✅ `slot00` → compressed game data, `inputprofile` → XML | ❌ padding check fails on every file |
+
+Why it is blocked:
+
+- **The Xbox key is not the Steam key**, and it is not an obvious variation
+  of it. Roughly 4,600 candidates (the account's XUID in decimal/hex, platform
+  names, the `asobo…asobo` template with other fillers, under SHA-1/MD5/SHA-256
+  key derivation) were tried against a known-plaintext target: the Xbox
+  `inputprofile`, which must decrypt to `<?xml`. None worked.
+- **The key can't be read out of the game.** Store/Game Pass executables are
+  access-locked (`C:\Program Files\WindowsApps` and `C:\XboxGames\…\Content`
+  deny reads), so the Xbox build can't be inspected offline.
+- **The only known working method is live memory injection**¹: attach a
+  debugger to the running Xbox game, break in its save routine at a
+  build-specific offset, and swap the save buffer for the decrypted Steam save
+  so the game encrypts it itself. That depends on the exact game build (it
+  breaks when the game updates) and needs a debugger with administrator rights,
+  so it isn't something this tool automates.
+
+What would unblock it: the Xbox key or its derivation (for example from the
+Xbox build's code), after which it becomes an ordinary decrypt → re-encrypt
+plugin. Steam ↔ Steam conversion is already possible with the known key.
+
+¹ Format and the memory-injection method documented by
+[ResonanceAPlagueTaleLegacySteamToGamePassSaveConvert](https://github.com/berkay496/ResonanceAPlagueTaleLegacySteamToGamePassSaveConvert).
+
+### Onimusha: Way of the Sword (Steam 2638890, Xbox `F024294D.63383C66B8708`): works, not yet built in
+
+Capcom RE Engine saves (`win64_save\data001Slot.bin` on Steam; WGS container
+`SaveData001Slot` on Xbox) use the `DSSS` container: a 16-byte header, blocks
+with an ElGamal key exchange plus AES-128-OFB, a footer, and a Murmur3-32
+signature. The key is derived from an **account ID**, so a save only loads for
+the account that wrote it:
+
+- Steam: the SteamID's 32-bit account ID, run through the game's ID variant.
+- Xbox: the same scheme, but the ID is **not** the account's XUID or a simple
+  hash of it; it is some other per-account number.
+
+Neither ID needs to be known in advance: both can be recovered from a save by
+brute force over 2³² candidates (seconds with vectorised code), using a
+known-plaintext check on the first block. A Steam → Xbox conversion therefore
+works like this: recover the uploader's ID from the Steam save, recover the
+target's ID from **their own existing Xbox save**, decrypt, re-encrypt, re-sign.
+This was verified in game on Xbox, including the cloud upload. The crypto
+comes from [MandarinJuice](https://github.com/mi5hmash/MandarinJuice) (MIT)
+and still needs porting to Python before it lands in savebridge; the same work
+would cover other RE Engine games (Resident Evil, Monster Hunter, Street Fighter 6).
 
 ## Usage
 
