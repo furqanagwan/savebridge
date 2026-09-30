@@ -97,5 +97,52 @@ class EndToEndTest(unittest.TestCase):
             GAME.remap(s, 'ff7remake003')
 
 
+class RebirthTest(unittest.TestCase):
+    """FF7 Rebirth: bare zlib on Xbox (no 'bilz' header) plus the xgs file copy."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.local = Path(self.tmp.name)
+        sysapp = self.local / 'Packages' / '39EA002F.EXED2_x' / 'SystemAppData'
+        self.wgs = empty_wgs(sysapp / 'wgs')
+        mine = zlib.compress(raw_save(b'm'))
+        WgsStore(self.wgs).write({'ff7rebirth001': {'Data': mine}})
+        self.xgs = sysapp / 'xgs' / self.wgs.name
+        (self.xgs / 'ff7rebirth001').mkdir(parents=True)
+        (self.xgs / 'ff7rebirth001' / 'Data').write_bytes(mine)
+        for p in (mock.patch.object(platforms, 'LOCALAPPDATA', self.local),
+                  mock.patch.object(platforms, 'BACKUP_ROOT', self.local / 'backups'),
+                  mock.patch.object(core, 'running_processes', lambda: set())):
+            p.start()
+            self.addCleanup(p.stop)
+        self.game = get_game('ff7-rebirth')
+
+    def test_formats(self):
+        raw = raw_save(b'r')
+        self.assertEqual(self.game.to_raw('ff7rebirth002', zlib.compress(raw, 1)), raw)
+        self.assertEqual(self.game.to_raw('ff7rebirth002', raw), raw)
+        self.assertEqual(zlib.decompress(self.game.to_xbox(raw)), raw)
+        self.assertIsNone(self.game.identify(raw, 'dl/FF7/ff7remake007.sav'))
+
+    def test_import_into_free_slots_writes_container_and_xgs_copy(self):
+        d = self.local / 'FF7R'
+        d.mkdir()
+        (d / 'ff7rebirth001.sav').write_bytes(raw_save(b'a'))
+        (d / 'ff7rebirth002.sav').write_bytes(raw_save(b'b'))
+        with mock.patch('sys.stdout'), mock.patch('sys.stderr'):
+            rc = cli.main(['import', 'rebirth', str(d), '--to', 'xbox', '--slot-map', '1:4'])
+        self.assertEqual(rc, 0)
+        store = WgsStore(self.wgs)
+        blobs = {e.name: store.read_blobs(e)['Data'] for e in store.live_entries()}
+        self.assertEqual(zlib.decompress(blobs['ff7rebirth001']), raw_save(b'm'))  # mine untouched
+        self.assertEqual(zlib.decompress(blobs['ff7rebirth004']), raw_save(b'a'))
+        self.assertEqual(zlib.decompress(blobs['ff7rebirth002']), raw_save(b'b'))
+        for name in ('ff7rebirth002', 'ff7rebirth004'):
+            self.assertEqual((self.xgs / name / 'Data').read_bytes(), blobs[name])
+        new = next(e for e in store.live_entries() if e.name == 'ff7rebirth004')
+        self.assertEqual(new.reserved, 0)
+
+
 if __name__ == '__main__':
     unittest.main()

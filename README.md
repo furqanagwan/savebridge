@@ -24,6 +24,7 @@ importing saves from other accounts into either platform.
 | `crimson-desert` | Crimson Desert | 3321460 | `PearlAbyss.CrimsonDesert` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `silent-hill-2` (`sh2`) | SILENT HILL 2 (2024) | 2124490 | `KonamiDigitalEntertainmen.SILENTHILL2` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `ff7-remake` (`ff7`) | FINAL FANTASY VII REMAKE INTERGRADE | 1462040 | `39EA002F.EXED1` | ✅ verified in game | 🧪 tested on synthetic saves |
+| `ff7-rebirth` (`rebirth`) | FINAL FANTASY VII REBIRTH | 2909400 | `39EA002F.EXED2` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `mouse-pi` (`mouse`) | MOUSE: P.I. For Hire | 2416450 | `PlaySideStudiosLTD.MOUSEP.I.ForHire` | ✅ verified in game | 🧪 tested on synthetic saves |
 
 ‡ Ghosts' `savegame.svg` is only the Continue point. Mission select reads the
@@ -277,6 +278,12 @@ The only game so far where the bytes differ: Steam → Xbox compresses and Xbox 
 Steam decompresses, and the raw save is identical. The game's deflate output
 differs from Python's but both are standard zlib. No account ID inside. If an
 account has two Xbox save folders for the game, the one holding its saves is used.
+
+**FINAL FANTASY VII REBIRTH** uses the same raw format and naming
+(`ff7rebirth<NNN>`, `ff7rebirthcommon`; Steam folder `Documents\My Games\FINAL FANTASY VII REBIRTH\Steam\<SteamID64>\`),
+but its Xbox blob is a bare zlib stream with no `bilz` header, and the game
+also reads a plain-file copy under `SystemAppData\xgs\`, which is written
+alongside the container.
 
 ### MOUSE: P.I. For Hire
 
