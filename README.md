@@ -25,6 +25,7 @@ importing saves from other accounts into either platform.
 | `ff7-remake` (`ff7`) | FINAL FANTASY VII REMAKE INTERGRADE | 1462040 | `39EA002F.EXED1` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `ff7-rebirth` (`rebirth`) | FINAL FANTASY VII REBIRTH | 2909400 | `39EA002F.EXED2` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `dispatch` | Dispatch | 2592160 | `AdHocStudio.DispatchSeason1` | ✅ verified in game | 🧪 tested on synthetic saves |
+| `beast-of-reincarnation` (`bor`) | Beast of Reincarnation | 2001760 | `Fictions.ProjectAibou` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `mouse-pi` (`mouse`) | MOUSE: P.I. For Hire | 2416450 | `PlaySideStudiosLTD.MOUSEP.I.ForHire` | ✅ verified in game | 🧪 tested on synthetic saves |
 
 ‡ Ghosts' `savegame.svg` is only the Continue point. Mission select reads the
@@ -351,6 +352,16 @@ on Steam, per PC). `SaveSlot<N>` (+ `_BACKUP`) is the save and `Index`
 (+ `_BACKUP`) records each slot's latest scene, so they travel together;
 `CloudSettings` is only copied with `--all`. Steam's `LocalOnly\<SteamID64>\*.bak`
 copies are ignored. No account ID in the files.
+
+### Beast of Reincarnation
+
+One UE 5.4 `.sav` per Xbox container (`%LOCALAPPDATA%\BeastOfReincarnation\Saved\SaveGames\`
+on Steam, per PC). Every file is an `AibouSaveDataContainer`: a GVAS shell
+around a compressed payload, identical on both stores and without an account ID.
+`borSaveDataNormal_<N>` and `borSaveDataNormal_AutoSave_<N>` are the saves and
+`borSaveDataMeta` (+ `bup0`/`bup1`) is a single index for all of them, so slots
+are only ever copied together with the index. `borSaveDataConfig` is settings
+(`--all`); `borSaveDataLocalConfig` is per machine and left alone.
 
 ### MOUSE: P.I. For Hire
 

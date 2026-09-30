@@ -1,6 +1,7 @@
 """Registry of supported games. To add one, subclass ``Game`` and list it here."""
 
 from .base import Game, ReadResult, Save, SaveError
+from .beast_of_reincarnation import BeastOfReincarnation
 from .black_ops_2 import BlackOps2
 from .control_resonant import ControlResonant
 from .crimson_desert import CrimsonDesert
@@ -18,7 +19,8 @@ from .silent_hill_2 import SilentHill2
 GAMES: dict[str, Game] = {g.id: g for g in (MgsDelta(), DestroyAllHumans(), ControlResonant(),
                                              Samson(), Dawnwalker(), BlackOps2(), Ghosts(), Kcd2(),
                                              CrimsonDesert(), SilentHill2(), Ff7Remake(),
-                                             Ff7Rebirth(), MousePi(), Dispatch())}
+                                             Ff7Rebirth(), MousePi(), Dispatch(),
+                                             BeastOfReincarnation())}
 
 ALIASES = {
     'mgs3': 'mgs-delta',
@@ -33,6 +35,7 @@ ALIASES = {
     'ff7r': 'ff7-rebirth',
     'rebirth': 'ff7-rebirth',
     'mouse': 'mouse-pi',
+    'bor': 'beast-of-reincarnation',
 }
 
 
