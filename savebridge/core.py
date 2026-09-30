@@ -5,13 +5,15 @@ from __future__ import annotations
 import datetime as dt
 import os
 import re
+import tempfile
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 
+from . import platforms
 from .games import Game, ReadResult, Save, SaveError
-from .platforms import (Account, LocalAccount, SteamAccount, active_steam_user, backup,
-                        long_path, parse_steam_id, parse_xuid, running_processes,
+from .platforms import (Account, LocalAccount, SteamAccount, XboxAccount, active_steam_user,
+                        backup, long_path, parse_steam_id, parse_xuid, running_processes,
                         steam_users, xbox_accounts)
 from .wgs import WgsError, WgsStore
 
@@ -181,6 +183,8 @@ def resolve_steam(game: Game, wanted: str | None) -> Account:
 def resolve_xbox(game: Game, wanted: str | None) -> Account:
     if not game.xbox_uses_wgs:
         return LocalAccount()
+    if not game.xbox_package_prefix:
+        raise SaveError(f'{game.name} has no Xbox PC version in savebridge')
     cands = xbox_accounts(game.xbox_package_prefix)
     if wanted:
         xuid = parse_xuid(wanted)
@@ -306,3 +310,55 @@ def backup_target(t: Target) -> Path | None:
             if long_path(d).is_dir():
                 extra[f'mirror{i}'] = d
     return backup(t.path, t.game.id, f'{t.platform}-{who}', extra or None)
+
+
+# ---- restoring backups -------------------------------------------------------
+
+BACKUP_NAME = re.compile(r'(\d{8}-\d{6})(?:\.(\d+))?-(steam|xbox)-(\w+)\.zip')
+
+
+@dataclass
+class Backup:
+    game_id: str
+    path: Path
+    when: dt.datetime
+    platform: str
+    who: str  # SteamID64, XUID, or 'pc'
+    seq: int = 1  # several backups in the same second
+
+
+def backups(game_id: str | None = None) -> list[Backup]:
+    """Backups savebridge made before each write, newest first."""
+    root = long_path(platforms.BACKUP_ROOT)
+    out = []
+    for d in sorted(root.iterdir()) if root.is_dir() else []:
+        if not d.is_dir() or (game_id and d.name != game_id):
+            continue
+        for f in d.iterdir():
+            m = BACKUP_NAME.fullmatch(f.name)
+            if m:
+                when = dt.datetime.strptime(m.group(1), '%Y%m%d-%H%M%S')
+                out.append(Backup(d.name, Path(_display(f)), when, m.group(3), m.group(4),
+                                  int(m.group(2) or 1)))
+    return sorted(out, key=lambda b: (b.when, b.seq), reverse=True)
+
+
+def backup_owner(game: Game, b: Backup) -> Target:
+    """Where a backup was taken from."""
+    if b.who == 'pc':
+        return Target(game, b.platform, LocalAccount())
+    if b.platform == 'steam':
+        return Target(game, 'steam', SteamAccount(int(b.who)))
+    return Target(game, 'xbox', resolve_xbox(game, b.who))
+
+
+def read_backup(game: Game, b: Backup) -> ReadResult:
+    """The saves inside a backup, decoded like live ones."""
+    owner = backup_owner(game, b)
+    with tempfile.TemporaryDirectory(prefix='savebridge-restore-') as tmp:
+        root = long_path(Path(tmp))
+        with zipfile.ZipFile(long_path(b.path)) as z:
+            z.extractall(root)
+        if owner.uses_wgs:
+            return Target(game, 'xbox', XboxAccount(owner.account.xuid, Path(tmp))).read()
+        return game.read_files(b.platform, root)

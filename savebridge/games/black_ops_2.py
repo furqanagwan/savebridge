@@ -52,6 +52,7 @@ def level(svg: bytes) -> str:
 class BlackOps2(Game):
     id = 'black-ops-2'
     name = 'Call of Duty: Black Ops II (campaign)'
+    verified = ('steam-to-xbox',)
     steam_app_id = 202970
     xbox_package_prefix = '38985CA0.CallofDutyBlackOps2PCMS_'
     process_prefixes = ('t6sp', 't6mp', 't6zm')

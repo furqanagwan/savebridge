@@ -27,6 +27,7 @@ META = ('borSaveDataMeta', 'borSaveDataMetabup0', 'borSaveDataMetabup1')
 class BeastOfReincarnation(UnrealFilesGame):
     id = 'beast-of-reincarnation'
     name = 'Beast of Reincarnation'
+    verified = ('steam-to-xbox',)
     steam_app_id = 2001760
     xbox_package_prefix = 'Fictions.ProjectAibou_'
     process_prefixes = ('beastofreincarnation',)

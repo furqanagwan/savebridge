@@ -66,6 +66,7 @@ def save_points(parts: dict[str, bytes]) -> list[str]:
 class ControlResonant(Game):
     id = 'control-resonant'
     name = 'CONTROL Resonant'
+    verified = ('steam-to-xbox',)
     steam_app_id = 3669870
     xbox_package_prefix = 'Remedy.CONTROLResonant_'
     process_prefixes = ('controlresonant',)

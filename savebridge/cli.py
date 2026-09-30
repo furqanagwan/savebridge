@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 from pathlib import Path
 
-from .core import (Target, backup_target, ensure_game_closed, resolve, scan,
-                   steam_candidates)
+from .core import (Target, backup_owner, backup_target, backups, ensure_game_closed,
+                   read_backup, resolve, scan, steam_candidates)
 from .games import GAMES, Game, Save, SaveError, get_game
 from .platforms import LocalAccount, active_steam_user, long_path, xbox_accounts
 from .wgs import WgsError
@@ -73,12 +74,12 @@ def _print_plan(game: Game, saves: list[Save], dest: Target) -> None:
             print(f'  {"":<{width}}  replaces {game.describe(existing[s.key])}')
 
 
-def _write(game: Game, saves: list[Save], dest: Target, args) -> int:
+def _write(game: Game, saves: list[Save], dest: Target, args, merge: bool = True) -> int:
     if not saves:
         print('Nothing to copy.')
         return 1
     print(f'\nInto {dest}\n  {dest.path}\n')
-    saves = dest.prepare(saves)
+    saves = dest.prepare(saves) if merge else [game.rebind(s, dest.account) for s in saves]
     _print_plan(game, saves, dest)
     if args.dry_run:
         print('\nDry run: nothing written.')
@@ -105,15 +106,39 @@ def _write(game: Game, saves: list[Save], dest: Target, args) -> int:
 
 # ---- commands ----------------------------------------------------------------
 
+def _emit(data) -> int:
+    print(json.dumps(data, indent=1, default=str))
+    return 0
+
+
+def _status(g: Game) -> str:
+    return 'verified in game: ' + ', '.join(g.verified) if g.verified else 'tested on synthetic saves only'
+
+
 def cmd_games(args) -> int:
+    if args.json:
+        return _emit([{'id': g.id, 'name': g.name, 'steam_app_id': g.steam_app_id,
+                       'xbox_package': g.xbox_package_prefix.rstrip('_'), 'verified': list(g.verified),
+                       'note': g.note} for g in GAMES.values()])
+    w = max(len(g.id) for g in GAMES.values())
     for g in GAMES.values():
-        print(f'{g.id:<14} {g.name}  (Steam app {g.steam_app_id}, Xbox {g.xbox_package_prefix}*)')
+        print(f'{g.id:<{w}}  {g.name}  (Steam app {g.steam_app_id}, Xbox {g.xbox_package_prefix}*)')
+        print(f'{"":<{w}}  {_status(g)}' + (f' ({g.note})' if g.note else ''))
     return 0
 
 
 def cmd_accounts(args) -> int:
     game = get_game(args.game)
     active = active_steam_user()
+    if args.json:
+        steam = [{'steamid64': a.steamid64, 'name': a.name, 'signed_in': a.steamid64 == active,
+                  'has_saves': game.save_dir('steam', a).is_dir()}
+                 for a in (steam_candidates(game) if game.steam_per_account else [])]
+        xbox = [{'xuid': a.xuid, 'folder': str(a.folder)}
+                for a in (xbox_accounts(game.xbox_package_prefix)
+                          if game.xbox_uses_wgs and game.xbox_package_prefix else [])]
+        return _emit({'steam_per_pc': not game.steam_per_account,
+                      'xbox_per_pc': not game.xbox_uses_wgs, 'steam': steam, 'xbox': xbox})
     print('Steam accounts:')
     if not game.steam_per_account:
         print(f'  saves are per PC, in {game.save_dir("steam", LocalAccount())}')
@@ -139,18 +164,28 @@ def cmd_accounts(args) -> int:
 def cmd_list(args) -> int:
     game = get_game(args.game)
     tables = {}
+    out = {}
     for platform in ('steam', 'xbox'):
         try:
             t = resolve(game, platform, args.steam_account, args.xbox_account)
             r = t.read()
         except (SaveError, WgsError) as e:
-            print(f'{platform.capitalize()}: {e}')
+            out[platform] = {'error': str(e), 'saves': {}}
+            if not args.json:
+                print(f'{platform.capitalize()}: {e}')
             tables[platform] = {}
+            continue
+        out[platform] = {'account': str(t.account), 'path': str(t.path), 'warnings': r.warnings,
+                         'saves': {k: game.describe(v) for k, v in
+                                   sorted(r.saves.items(), key=lambda kv: game.key_order(kv[0]))}}
+        tables[platform] = r.saves
+        if args.json:
             continue
         print(f'{t}\n  {t.path}')
         for w in r.warnings:
             print(f'  warning: {w}')
-        tables[platform] = r.saves
+    if args.json:
+        return _emit(out)
     keys = sorted(set(tables['steam']) | set(tables['xbox']), key=game.key_order)
     rows = [(k, *[game.describe(tables[p][k]) if k in tables[p] else '-' for p in ('steam', 'xbox')])
             for k in keys]
@@ -208,6 +243,52 @@ def cmd_export(args) -> int:
     return 0
 
 
+def _pick_backup(game: Game, name: str | None):
+    found = backups(game.id)
+    if not found:
+        raise SaveError(f'no savebridge backups for {game.name}')
+    if not name or name == 'latest':
+        return found[0]
+    hit = [b for b in found if name in (b.path.name, b.path.stem, str(b.path))]
+    if not hit:
+        raise SaveError(f'no backup named {name}; see: savebridge backups {game.id}')
+    return hit[0]
+
+
+def cmd_backups(args) -> int:
+    found = backups(get_game(args.game).id if args.game else None)
+    if args.json:
+        return _emit([{'game': b.game_id, 'name': b.path.name, 'path': str(b.path),
+                       'time': b.when.isoformat(), 'platform': b.platform, 'account': b.who,
+                       'size': long_path(b.path).stat().st_size} for b in found])
+    if not found:
+        print('No backups yet. savebridge makes one before every write.')
+        return 0
+    for b in found:
+        print(f'{b.when:%Y-%m-%d %H:%M:%S}  {b.game_id:<22} {b.platform:<5} {b.who:<18} {b.path.name}')
+    print('\nRestore with: savebridge restore <game> [name]   (default: the newest)')
+    return 0
+
+
+def cmd_restore(args) -> int:
+    game = get_game(args.game)
+    b = _pick_backup(game, args.backup)
+    dest = backup_owner(game, b)
+    r = read_backup(game, b)
+    for w in r.warnings:
+        print(f'warning: {w}')
+    print(f'Restoring the backup from {b.when:%Y-%m-%d %H:%M:%S}\n  {b.path}')
+    saves = [r.saves[k] for k in sorted(r.saves, key=game.key_order)]
+    try:
+        extra = sorted(set(dest.read().saves) - set(r.saves), key=game.key_order)
+    except (SaveError, WgsError, OSError):
+        extra = []
+    rc = _write(game, saves, dest, args, merge=False)
+    if extra and not args.dry_run:
+        print(f'Not in the backup, left as they are: {", ".join(extra)}')
+    return rc
+
+
 def main(argv: list[str] | None = None) -> int:
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, 'reconfigure'):
@@ -238,12 +319,15 @@ def main(argv: list[str] | None = None) -> int:
     writing.add_argument('--dry-run', action='store_true', help='show the plan, write nothing')
     writing.add_argument('--force', action='store_true', help='skip the game-running check')
 
-    sub.add_parser('games', help='list supported games')
+    as_json = argparse.ArgumentParser(add_help=False)
+    as_json.add_argument('--json', action='store_true', help='machine-readable output (for the app)')
 
-    p = sub.add_parser('accounts', help='list Steam and Xbox accounts found for a game')
+    sub.add_parser('games', parents=[as_json], help='list supported games and how well each is tested')
+
+    p = sub.add_parser('accounts', parents=[as_json], help='list Steam and Xbox accounts found for a game')
     p.add_argument('game')
 
-    p = sub.add_parser('list', parents=[accounts], help="show a game's saves on both platforms")
+    p = sub.add_parser('list', parents=[accounts, as_json], help="show a game's saves on both platforms")
     p.add_argument('game')
 
     p = sub.add_parser('convert', parents=[accounts, choose, writing],
@@ -265,9 +349,19 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--from', dest='source', required=True, choices=['steam', 'xbox'])
     p.add_argument('--out', required=True)
 
+    p = sub.add_parser('backups', parents=[as_json], help='list the backups made before each write')
+    p.add_argument('game', nargs='?')
+
+    p = sub.add_parser('restore', help='put a backup back (the current saves are backed up first)')
+    p.add_argument('game')
+    p.add_argument('backup', nargs='?', help='backup file name (default: the newest)')
+    p.add_argument('--dry-run', action='store_true', help='show the plan, write nothing')
+    p.add_argument('--force', action='store_true', help='skip the game-running check')
+
     args = ap.parse_args(argv)
     handler = {'games': cmd_games, 'accounts': cmd_accounts, 'list': cmd_list,
-               'convert': cmd_convert, 'import': cmd_import, 'export': cmd_export}[args.cmd]
+               'convert': cmd_convert, 'import': cmd_import, 'export': cmd_export,
+               'backups': cmd_backups, 'restore': cmd_restore}[args.cmd]
     try:
         return handler(args)
     except (SaveError, WgsError) as e:

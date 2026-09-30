@@ -39,6 +39,7 @@ def parse(name: str, data: bytes) -> dict:
 class Cuphead(Game):
     id = 'cuphead'
     name = 'Cuphead'
+    verified = ('steam-to-xbox',)
     steam_app_id = 268910
     xbox_package_prefix = 'StudioMDHR.20872A364DAA1_'
     process_prefixes = ('cuphead',)

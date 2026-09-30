@@ -38,6 +38,8 @@ class Save:
     parts: dict[str, bytes]   # part name -> platform-neutral bytes (most games: one part)
     source: str = ''          # where it was read from, for display
     created: dt.datetime | None = None  # used to pick the newest copy
+    bind: object = None       # set by rebind(): what writing needs for the target account
+                              # (e.g. the key an encrypted save is re-encrypted with)
 
     def with_key(self, key: str) -> 'Save':
         return replace(self, key=key)
@@ -64,6 +66,10 @@ class Game(ABC):
     process_prefixes: tuple[str, ...] = ()
     xbox_uses_wgs: bool = True          # False: the Xbox build writes plain files
     steam_per_account: bool = True      # False: one save folder per PC, not per SteamID
+    # Directions confirmed to load in game ('steam-to-xbox', 'xbox-to-steam'). The
+    # others are covered only by tests on synthetic saves.
+    verified: tuple[str, ...] = ()
+    note: str = ''                      # caveat shown next to the status
 
     # ---- which saves exist -------------------------------------------------
 

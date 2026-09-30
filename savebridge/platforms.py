@@ -183,6 +183,10 @@ def backup(src: Path, game_id: str, label: str,
         return None
     stamp = dt.datetime.now().strftime('%Y%m%d-%H%M%S')
     dest = BACKUP_ROOT / game_id / f'{stamp}-{label}.zip'
+    n = 1
+    while long_path(dest).exists():  # never overwrite an earlier backup from the same second
+        n += 1
+        dest = BACKUP_ROOT / game_id / f'{stamp}.{n}-{label}.zip'
     long_path(dest.parent).mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(long_path(dest), 'w', zipfile.ZIP_DEFLATED) as z:
         for prefix, folder in [('', src)] + [(f'{k}/', long_path(v)) for k, v in (extra or {}).items()]:

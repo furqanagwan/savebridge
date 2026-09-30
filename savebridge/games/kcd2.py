@@ -52,6 +52,7 @@ def newest_first(parts: dict[str, bytes]) -> list[str]:
 class Kcd2(Game):
     id = 'kcd2'
     name = 'Kingdom Come: Deliverance II'
+    verified = ('steam-to-xbox',)
     steam_app_id = 1771300
     xbox_package_prefix = 'DeepSilver.77536C3FE941_'
     process_prefixes = ('kingdomcome',)

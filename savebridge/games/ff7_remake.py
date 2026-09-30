@@ -64,6 +64,7 @@ def to_raw(key: str, data: bytes) -> bytes:
 class Ff7Remake(Game):
     id = 'ff7-remake'
     name = 'FINAL FANTASY VII REMAKE INTERGRADE'
+    verified = ('steam-to-xbox',)
     steam_app_id = 1462040
     xbox_package_prefix = '39EA002F.EXED1_'
     process_prefixes = ('ff7remake',)
@@ -172,6 +173,7 @@ class Ff7Rebirth(Ff7Remake):
     """
     id = 'ff7-rebirth'
     name = 'FINAL FANTASY VII REBIRTH'
+    verified = ('steam-to-xbox',)
     steam_app_id = 2909400
     xbox_package_prefix = '39EA002F.EXED2_'
     process_prefixes = ('ff7rebirth',)

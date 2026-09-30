@@ -120,6 +120,7 @@ def _slot_no(key: str) -> int | None:
 class MgsDelta(Game):
     id = 'mgs-delta'
     name = 'METAL GEAR SOLID Δ: SNAKE EATER'
+    verified = ('steam-to-xbox',)
     steam_app_id = 2417610
     xbox_package_prefix = 'KonamiDigitalEntertainmen.RG5_'
     process_prefixes = ('mgsdelta',)

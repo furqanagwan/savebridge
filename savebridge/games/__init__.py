@@ -14,6 +14,7 @@ from .ghosts import Ghosts
 from .kcd2 import Kcd2
 from .mgs_delta import MgsDelta
 from .mouse_pi import MousePi
+from .re_engine import Onimusha
 from .samson import Samson
 from .silent_hill_2 import SilentHill2
 
@@ -21,7 +22,7 @@ GAMES: dict[str, Game] = {g.id: g for g in (MgsDelta(), DestroyAllHumans(), Cont
                                              Samson(), Dawnwalker(), BlackOps2(), Ghosts(), Kcd2(),
                                              CrimsonDesert(), SilentHill2(), Ff7Remake(),
                                              Ff7Rebirth(), MousePi(), Dispatch(),
-                                             BeastOfReincarnation(), Cuphead())}
+                                             BeastOfReincarnation(), Cuphead(), Onimusha())}
 
 ALIASES = {
     'mgs3': 'mgs-delta',
@@ -37,6 +38,7 @@ ALIASES = {
     'rebirth': 'ff7-rebirth',
     'mouse': 'mouse-pi',
     'bor': 'beast-of-reincarnation',
+    'oni': 'onimusha',
 }
 
 

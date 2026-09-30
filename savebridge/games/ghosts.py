@@ -41,6 +41,8 @@ def check(data: bytes) -> None:
 class Ghosts(Game):
     id = 'ghosts'
     name = 'Call of Duty: Ghosts (campaign)'
+    verified = ('steam-to-xbox',)
+    note = 'campaign progress; mission select only partly (Rorke Files not unlocked)'
     steam_app_id = 209160
     xbox_package_prefix = '38985CA0.CallofDutyGhostsPCMS_'
     process_prefixes = ('iw6sp', 'iw6mp', 'ghosts')

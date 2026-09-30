@@ -57,6 +57,7 @@ def _set_meta(meta: bytes, field: str, value) -> bytes:
 class Dawnwalker(Game):
     id = 'dawnwalker'
     name = 'The Blood of Dawnwalker'
+    verified = ('steam-to-xbox',)
     steam_app_id = 3751260
     xbox_package_prefix = 'NAMCOBANDAIGamesInc.TheBloodofDawnwalker_'
     process_prefixes = ('dawnwalker',)

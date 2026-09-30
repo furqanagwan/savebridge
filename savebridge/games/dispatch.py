@@ -22,6 +22,7 @@ INDEX = ('/Script/AdHocSaveGame.AdHocSaveIndexV2',)
 class Dispatch(UnrealFilesGame):
     id = 'dispatch'
     name = 'Dispatch'
+    verified = ('steam-to-xbox',)
     steam_app_id = 2592160
     xbox_package_prefix = 'AdHocStudio.DispatchSeason1_'
     process_prefixes = ('dispatch',)

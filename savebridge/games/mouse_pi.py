@@ -65,6 +65,7 @@ def set_continue(profile: bytes, pointer: dict[str, str]) -> bytes:
 class MousePi(Game):
     id = 'mouse-pi'
     name = 'MOUSE: P.I. For Hire'
+    verified = ('steam-to-xbox',)
     steam_app_id = 2416450
     xbox_package_prefix = 'PlaySideStudiosLTD.MOUSEP.I.ForHire_'
     process_prefixes = ('mouse',)

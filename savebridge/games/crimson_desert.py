@@ -39,6 +39,7 @@ def check(name: str, data: bytes) -> None:
 class CrimsonDesert(Game):
     id = 'crimson-desert'
     name = 'Crimson Desert'
+    verified = ('steam-to-xbox',)
     steam_app_id = 3321460
     xbox_package_prefix = 'PearlAbyss.CrimsonDesert_'
     process_prefixes = ('crimsondesert',)

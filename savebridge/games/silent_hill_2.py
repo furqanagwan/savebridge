@@ -28,6 +28,7 @@ SLOTS = 30
 class SilentHill2(UnrealFilesGame):
     id = 'silent-hill-2'
     name = 'SILENT HILL 2'
+    verified = ('steam-to-xbox',)
     steam_app_id = 2124490
     xbox_package_prefix = 'KonamiDigitalEntertainmen.SILENTHILL2_'
     process_prefixes = ('silenthill2', 'shproto')

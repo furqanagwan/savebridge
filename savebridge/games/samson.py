@@ -24,6 +24,7 @@ SAVE = ('/Script/CJ.CJSaveGameV2',)
 class Samson(UnrealFilesGame):
     id = 'samson'
     name = 'Samson: A Tyndalston Story'
+    verified = ('steam-to-xbox',)
     steam_app_id = 3634520
     xbox_package_prefix = '29692LiquidSwords.CriminalJustice_'
     process_prefixes = ('cjxpa', 'cj-win64', 'samson')

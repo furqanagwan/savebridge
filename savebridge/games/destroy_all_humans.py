@@ -95,6 +95,7 @@ def merge_options(target: bytes, incoming: bytes, last_used: str | None) -> byte
 class DestroyAllHumans(Game):
     id = 'destroy-all-humans'
     name = 'Destroy All Humans! (2020)'
+    verified = ('steam-to-xbox',)
     steam_app_id = 803330
     xbox_package_prefix = 'NordicGames.DestroyAllHumans_'
     process_prefixes = ('dh-win64',)

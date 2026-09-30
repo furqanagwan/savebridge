@@ -9,3 +9,6 @@ dist/
 *.sav
 containers.index
 container.*
+
+# built by nativeuild.cmd
+savebridge/_native/
