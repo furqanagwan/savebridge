@@ -5,6 +5,7 @@ from .beast_of_reincarnation import BeastOfReincarnation
 from .black_ops_2 import BlackOps2
 from .control_resonant import ControlResonant
 from .crimson_desert import CrimsonDesert
+from .cuphead import Cuphead
 from .dawnwalker import Dawnwalker
 from .destroy_all_humans import DestroyAllHumans
 from .dispatch import Dispatch
@@ -20,7 +21,7 @@ GAMES: dict[str, Game] = {g.id: g for g in (MgsDelta(), DestroyAllHumans(), Cont
                                              Samson(), Dawnwalker(), BlackOps2(), Ghosts(), Kcd2(),
                                              CrimsonDesert(), SilentHill2(), Ff7Remake(),
                                              Ff7Rebirth(), MousePi(), Dispatch(),
-                                             BeastOfReincarnation())}
+                                             BeastOfReincarnation(), Cuphead())}
 
 ALIASES = {
     'mgs3': 'mgs-delta',

@@ -26,6 +26,7 @@ importing saves from other accounts into either platform.
 | `ff7-rebirth` (`rebirth`) | FINAL FANTASY VII REBIRTH | 2909400 | `39EA002F.EXED2` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `dispatch` | Dispatch | 2592160 | `AdHocStudio.DispatchSeason1` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `beast-of-reincarnation` (`bor`) | Beast of Reincarnation | 2001760 | `Fictions.ProjectAibou` | ✅ verified in game | 🧪 tested on synthetic saves |
+| `cuphead` | Cuphead | 268910 | `StudioMDHR.20872A364DAA1` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `mouse-pi` (`mouse`) | MOUSE: P.I. For Hire | 2416450 | `PlaySideStudiosLTD.MOUSEP.I.ForHire` | ✅ verified in game | 🧪 tested on synthetic saves |
 
 ‡ Ghosts' `savegame.svg` is only the Continue point. Mission select reads the
@@ -362,6 +363,17 @@ around a compressed payload, identical on both stores and without an account ID.
 `borSaveDataMeta` (+ `bup0`/`bup1`) is a single index for all of them, so slots
 are only ever copied together with the index. `borSaveDataConfig` is settings
 (`--all`); `borSaveDataLocalConfig` is per machine and left alone.
+
+### Cuphead
+
+| | Steam | Xbox |
+|---|---|---|
+| Location | `%APPDATA%\Cuphead\cuphead_player_data_v1_slot_<N>.sav` (per PC) | one container `GameSaveContainer`, blobs named without `.sav` |
+| Other data | — | `cuphead_settings_data_v1` (settings, `--all`) and an `r2|…` Rewired controller map (left alone) |
+
+Saves are plain JSON with the same fields on both stores, no account ID, and
+no record of their own slot number, so `--slot-map 0:1` puts a download into a
+free slot. (The in-game menu numbers slots from 1.)
 
 ### MOUSE: P.I. For Hire
 
