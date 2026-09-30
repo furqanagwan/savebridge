@@ -24,6 +24,7 @@ importing saves from other accounts into either platform.
 | `crimson-desert` | Crimson Desert | 3321460 | `PearlAbyss.CrimsonDesert` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `silent-hill-2` (`sh2`) | SILENT HILL 2 (2024) | 2124490 | `KonamiDigitalEntertainmen.SILENTHILL2` | ✅ verified in game | 🧪 tested on synthetic saves |
 | `ff7-remake` (`ff7`) | FINAL FANTASY VII REMAKE INTERGRADE | 1462040 | `39EA002F.EXED1` | ✅ verified in game | 🧪 tested on synthetic saves |
+| `mouse-pi` (`mouse`) | MOUSE: P.I. For Hire | 2416450 | `PlaySideStudiosLTD.MOUSEP.I.ForHire` | ✅ verified in game | 🧪 tested on synthetic saves |
 
 ‡ Ghosts' `savegame.svg` is only the Continue point. Mission select reads the
 profile (`settings_s.zip.iw6`), which Steam downloads usually don't include.
@@ -276,6 +277,21 @@ The only game so far where the bytes differ: Steam → Xbox compresses and Xbox 
 Steam decompresses, and the raw save is identical. The game's deflate output
 differs from Python's but both are standard zlib. No account ID inside. If an
 account has two Xbox save folders for the game, the one holding its saves is used.
+
+### MOUSE: P.I. For Hire
+
+| | Steam | Xbox |
+|---|---|---|
+| Location | `%USERPROFILE%\AppData\LocalLow\Fumi Games\MOUSE\Save\` and `\Local\` (per PC) | one container `MouseContainer`, all files flat |
+| Game saves | `save<N>.rsf`, `checkpoint<N>.rsf`, `auto.rsf` | same |
+| Profile | `profile.rsf` (+ `_backup`): JSON with the Continue pointer (`a`/`b`), settings, bindings, achievement counters (`f`) and collection progress (`g`) | same |
+| Machine settings | `local-profile.rsf` (+ `_backup`), copied with `--all` | same |
+
+A Unity game; files are identical across stores and carry no account ID. The
+game saves are replaced as a set (so two playthroughs never mix); the profile is
+merged: the target keeps its settings and achievement counters and only takes
+the Continue pointer. Chapter-select downloads bundle one set per chapter;
+point `import` at the chapter's folder (the one holding `Save` and `Local`).
 
 ## Achievements and imported saves
 

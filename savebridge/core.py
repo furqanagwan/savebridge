@@ -279,7 +279,7 @@ def scan(game: Game, paths: list[Path], strict: bool = True) -> ReadResult:
             continue
         if s is not None:
             found.append(s)
-            groups.setdefault(group, []).append(s.key)
+            groups.setdefault(game.import_root(group), []).append(s.key)
     if len(groups) > 1:
         listing = '\n  '.join(f'{g}  ({", ".join(sorted(set(k)))})' for g, k in sorted(groups.items()))
         raise SaveError(f'found saves in {len(groups)} different folders; import one at a time:'

@@ -140,6 +140,11 @@ class Game(ABC):
     def identify(self, data: bytes, name: str, strict: bool = True) -> Save | None:
         """Recognise a single file from either platform, or return None."""
 
+    def import_root(self, folder: str) -> str:
+        """The folder that identifies one save set, for the mixed-sets check.
+        Games whose save set spans sibling folders map them to their parent."""
+        return folder
+
     def collect(self, found: list[Save]) -> ReadResult:
         """Combine identified files into saves. Default: keep the newest copy of each key.
 
