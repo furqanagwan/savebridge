@@ -11,6 +11,7 @@ from .destroy_all_humans import DestroyAllHumans
 from .dispatch import Dispatch
 from .ff7_remake import Ff7Rebirth, Ff7Remake
 from .ghosts import Ghosts
+from .halo_campaign_evolved import HaloCampaignEvolved
 from .kcd2 import Kcd2
 from .mgs_delta import MgsDelta
 from .mouse_pi import MousePi
@@ -22,7 +23,8 @@ GAMES: dict[str, Game] = {g.id: g for g in (MgsDelta(), DestroyAllHumans(), Cont
                                              Samson(), Dawnwalker(), BlackOps2(), Ghosts(), Kcd2(),
                                              CrimsonDesert(), SilentHill2(), Ff7Remake(),
                                              Ff7Rebirth(), MousePi(), Dispatch(),
-                                             BeastOfReincarnation(), Cuphead(), Onimusha())}
+                                             BeastOfReincarnation(), Cuphead(), Onimusha(),
+                                             HaloCampaignEvolved())}
 
 ALIASES = {
     'mgs3': 'mgs-delta',
@@ -39,6 +41,8 @@ ALIASES = {
     'mouse': 'mouse-pi',
     'bor': 'beast-of-reincarnation',
     'oni': 'onimusha',
+    'halo': 'halo-campaign-evolved',
+    'hce': 'halo-campaign-evolved',
 }
 
 

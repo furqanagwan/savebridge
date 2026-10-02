@@ -1,5 +1,16 @@
 # Third-party notices
 
+## ooz (optional external executable)
+
+Halo checkpoint decompression invokes [powzix/ooz](https://github.com/powzix/ooz)
+as a separate CLI process. Copyright (C) 2016, Powzix; licensed under
+GNU GPL version 3 or later. Its source code is not incorporated into the
+Python package. `native/build_ooz.ps1` builds revision
+`05038060aa68f9187ae9923b2388ca8db40e58d1` and retains its source in the
+reported temporary directory, with an added `sys/stat.h` include for MSVC.
+If distributing this optional executable, provide its corresponding source,
+build instructions, notices, and the [GPL license](https://www.gnu.org/licenses/gpl-3.0.html).
+
 ## MandarinJuice
 
 `savebridge/dsss.py` and `native/dsss_find.c` port the Capcom RE Engine DSSS

@@ -447,6 +447,50 @@ encrypted (section 10), seed `0xA235A0818E21A7A6`, ID variant 1.
 
 ## 13. Hard cases
 
+### Halo: Campaign Evolved (Steam → Xbox verified in game)
+
+Steam app [2806050](https://store.steampowered.com/app/2806050/Halo_Campaign_Evolved/).
+Installed Xbox `MicrosoftGame.config` identifies package
+`Microsoft.198377053870B_8wekyb3d8bbwe`, title `7C27BAE7`, executable
+`HaloCampaignEvolved.exe`. Live WGS contains `CoreSave_0`, `CoreSave_1`,
+and `Progress`, each with a single `Data` blob. No xgs mirror was present.
+The armory DLC package is not the save package.
+
+`Progress.sav` is GVAS (`BlamProgressLocalPlayerSaveGame`) with mission
+completion/insertion-point tags, skulls and terminals. Checkpoints contain:
+
+- `HALOCEVO`, u32 version 0, u32 uncompressed size;
+- u64 `222222229E2A83C1`, u64 chunk size 131072, byte compressor 2;
+- u64 total compressed size, u64 total raw size;
+- one `(u64 compressed, u64 raw)` pair per chunk, followed by Oodle Kraken streams.
+
+Decompressed checkpoints are GVAS `BlamSaveSlotSaveGame`, containing metadata
+and binary Blam game state. Slot 0 references the main campaign; slot 1 the
+additional Operation: METEORITE campaign. They are not interchangeable slots.
+`PerPlayerXuidMapping` is a UE5 UInt64 property, but its value does not equal
+the local XUID. All four inspected solo checkpoints contain seven copies of
+their profile's same opaque value: one metadata value and six inside the
+game state. The converter learns the destination value from existing
+checkpoints and replaces all seven copies, refusing conflicting mappings or
+other copy counts. This is an observed layout, not a general co-op parser.
+
+The downloaded Steam sample is CU2. Xbox checkpoints are CU2/CU3; Xbox
+progress is CU4. Engine 5.5.4/package versions agree; custom-version counts
+differ. Headers and versions are preserved, with no guessed build migration.
+The user confirmed the imported CU2 saves loaded in the current Xbox PC
+build on 2026-10-02. Xbox → Steam loading has not been confirmed in game.
+
+Decompression uses the separately built GPL ooz CLI, pinned by
+`native/build_ooz.ps1`; encoding uses valid raw Oodle blocks (`CC 06`) with
+rebuilt archive sizes. No proprietary Oodle DLL is redistributed. The
+Steam SaveGames destination is provisional: there is no installed Steam
+save tree on this PC to confirm account subfolders. Download import and
+the Xbox WGS mapping have been checked against actual samples.
+
+Real save files stay outside version control. Tests use synthetic GVAS,
+raw Oodle blocks and WGS stores. Synthetic round trips cover both directions;
+successful Steam → Xbox loading was separately confirmed by the user.
+
 ### Resonance: A Plague Tale Legacy: blocked
 
 Every file (`slot00`, `slot01`, `settings`, `inputprofile`) is encrypted in

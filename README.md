@@ -35,10 +35,22 @@ Steam direction is covered by tests on synthetic saves.
 | Cuphead | ✅ verified | |
 | MOUSE: P.I. For Hire | ✅ verified | |
 | Onimusha: Way of the Sword | ✅ verified | Capcom encryption; the Xbox version must have saved once |
+| Halo: Campaign Evolved | ✅ verified | Solo checkpoints; the Xbox profile must have saved once |
 
 Not supported yet: Resonance: A Plague Tale Legacy (the Xbox encryption key
 is unknown), other Capcom RE Engine games (same converter, need their Xbox
 details). See [research.md](research.md) for how each game stores its saves.
+
+Halo: Campaign Evolved is available as `halo-campaign-evolved` (alias `halo`),
+with Steam → Xbox loading confirmed in game. Build its separate Oodle decoder
+with `./native/build_ooz.ps1`
+(Visual Studio C++ tools and Git required), or set `SAVEBRIDGE_OOZ` to an
+existing ooz executable. Import checkpoints together with `Progress.sav`.
+The Xbox profile must have saved once so its player mapping can be recovered.
+Only the observed solo checkpoint layout is supported. Rebound checkpoints
+use larger, uncompressed Oodle blocks. The default Steam destination is
+`%LOCALAPPDATA%\Meteorite\Saved\SaveGames`; native Steam folder discovery
+has not been confirmed on an installed Steam build.
 
 ## Achievements
 
