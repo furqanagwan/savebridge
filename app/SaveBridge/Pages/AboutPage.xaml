@@ -1,0 +1,31 @@
+<Page x:Class="SaveBridge.Pages.AboutPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ScrollViewer>
+    <StackPanel Padding="32,16,32,32" Spacing="16" MaxWidth="760" HorizontalAlignment="Left">
+      <TextBlock Text="About savebridge" Style="{StaticResource TitleTextBlockStyle}" />
+      <TextBlock TextWrapping="Wrap"
+                 Text="Moves PC game saves between Steam and Xbox PC (Game Pass / Microsoft Store), in either direction and between accounts, including saves someone else shared." />
+      <InfoBar Severity="Warning" IsOpen="True" IsClosable="False" Title="Disclaimer"
+               Message="savebridge is an unofficial fan project, not affiliated with Microsoft, Valve or any game publisher. It edits save files: it backs up everything it changes and verifies what it writes, but use it at your own risk. Only use saves you have the right to use, and don't use it to cheat in online or competitive modes." />
+      <StackPanel Spacing="4">
+        <TextBlock Text="How it works" Style="{StaticResource SubtitleTextBlockStyle}" />
+        <TextBlock TextWrapping="Wrap"
+                   Text="The app is a front end for the savebridge converter; everything it does can also be done from the command line. Xbox saves are written as new versions the Xbox app uploads the next time the game runs online. Capcom games encrypt saves per account: the Xbox version must have saved once so savebridge can find your account key." />
+      </StackPanel>
+      <StackPanel Spacing="4">
+        <TextBlock Text="Privacy" Style="{StaticResource SubtitleTextBlockStyle}" />
+        <TextBlock TextWrapping="Wrap"
+                   Text="Everything happens on this PC. The only network access is the optional Xbox sign-in, which reads your own profile, games and achievements from Xbox Live and never changes them." />
+      </StackPanel>
+      <StackPanel Spacing="4">
+        <TextBlock Text="Links" Style="{StaticResource SubtitleTextBlockStyle}" />
+        <HyperlinkButton Content="Source code and issues" NavigateUri="https://github.com/furqanagwan/savebridge" />
+        <HyperlinkButton Content="How Xbox PC saves work (research notes)" NavigateUri="https://github.com/furqanagwan/savebridge/blob/main/research.md" />
+        <HyperlinkButton Content="License (MIT) and third-party notices" NavigateUri="https://github.com/furqanagwan/savebridge/blob/main/THIRD_PARTY_NOTICES.md" />
+      </StackPanel>
+      <TextBlock x:Name="Engine" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap"
+                 Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+    </StackPanel>
+  </ScrollViewer>
+</Page>

@@ -1,0 +1,124 @@
+<Page x:Class="SaveBridge.Pages.ProfilePage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:s="using:SaveBridge.Services">
+  <Grid Padding="32,16,32,24" RowSpacing="12">
+    <Grid.RowDefinitions>
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="Auto" />
+      <RowDefinition Height="*" />
+    </Grid.RowDefinitions>
+
+    <!-- header -->
+    <Grid ColumnSpacing="16">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="Auto" />
+        <ColumnDefinition Width="*" />
+        <ColumnDefinition Width="Auto" />
+      </Grid.ColumnDefinitions>
+      <PersonPicture x:Name="Picture" Width="56" Height="56" />
+      <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+        <TextBlock x:Name="Gamertag" Text="Xbox profile" Style="{StaticResource TitleTextBlockStyle}" />
+        <TextBlock x:Name="Gamerscore" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Text="Sign in to see your games and achievements." />
+      </StackPanel>
+      <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+        <ProgressRing x:Name="Busy" Width="20" Height="20" />
+        <Button x:Name="SignIn" Style="{StaticResource AccentButtonStyle}" Content="Sign in with Microsoft" Click="SignIn_Click" />
+        <Button x:Name="SignOut" Content="Sign out" Click="SignOut_Click" Visibility="Collapsed" />
+      </StackPanel>
+    </Grid>
+
+    <StackPanel Grid.Row="1" Spacing="8">
+      <InfoBar x:Name="Error" Severity="Error" IsClosable="True" />
+      <InfoBar Severity="Informational" IsOpen="True" IsClosable="False"
+               Title="About achievements and imported saves">
+        <InfoBar.Content>
+          <TextBlock TextWrapping="Wrap" Margin="0,0,0,12">
+            <Run FontWeight="SemiBold">Title-managed</Run><Run> achievements are awarded by the game itself; many games re-check them when a save loads, so some can unlock after importing a save. </Run>
+            <Run FontWeight="SemiBold">Event-based</Run><Run> achievements are counted by Xbox Live from events the game sends while you play (older titles such as Halo MCC or Forza Horizon 3). A save file can't carry that progress, so you have to play those parts again. Story achievements only unlock for what you play after the save point. savebridge only reads your achievements; it never changes them.</Run>
+          </TextBlock>
+        </InfoBar.Content>
+      </InfoBar>
+    </StackPanel>
+
+    <!-- signed out -->
+    <StackPanel x:Name="SignedOutPanel" Grid.Row="2" Spacing="8" MaxWidth="640" HorizontalAlignment="Left">
+      <TextBlock TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                 Text="Signing in uses Microsoft's own login page. savebridge then reads your gamertag, played games and achievements (read-only). The sign-in is remembered for this Windows user, encrypted with Windows' data protection; Sign out forgets it. It is optional: converting saves works without it." />
+    </StackPanel>
+
+    <!-- signed in -->
+    <Grid x:Name="SignedInPanel" Grid.Row="2" ColumnSpacing="16" Visibility="Collapsed">
+      <Grid.ColumnDefinitions>
+        <ColumnDefinition Width="360" />
+        <ColumnDefinition Width="*" />
+      </Grid.ColumnDefinitions>
+      <Grid RowSpacing="8">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <AutoSuggestBox x:Name="Search" PlaceholderText="Search your games" QueryIcon="Find" TextChanged="Search_TextChanged" />
+        <ListView x:Name="Titles" Grid.Row="1" SelectionChanged="Titles_SelectionChanged">
+          <ListView.ItemTemplate>
+            <DataTemplate x:DataType="s:XboxTitle">
+              <Grid ColumnSpacing="12" Padding="0,8">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="44" />
+                  <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Image Width="44" Height="44" Stretch="UniformToFill">
+                  <Image.Source><BitmapImage UriSource="{x:Bind ImageUri}" DecodePixelWidth="88" /></Image.Source>
+                </Image>
+                <StackPanel Grid.Column="1" Spacing="4">
+                  <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                  <TextBlock Text="{x:Bind Progress}" Style="{StaticResource CaptionTextBlockStyle}"
+                             Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                  <ProgressBar Value="{x:Bind Percent}" Maximum="100" />
+                </StackPanel>
+              </Grid>
+            </DataTemplate>
+          </ListView.ItemTemplate>
+        </ListView>
+      </Grid>
+      <Grid Grid.Column="1" RowSpacing="8">
+        <Grid.RowDefinitions>
+          <RowDefinition Height="Auto" />
+          <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+        <StackPanel Spacing="2">
+          <TextBlock x:Name="TitleName" Style="{StaticResource SubtitleTextBlockStyle}" Text="Pick a game" />
+          <TextBlock x:Name="TitleSummary" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap"
+                     Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </StackPanel>
+        <ListView x:Name="AchievementList" Grid.Row="1" SelectionMode="None">
+          <ListView.ItemTemplate>
+            <DataTemplate x:DataType="s:Achievement">
+              <Grid ColumnSpacing="12" Padding="0,8" Opacity="{x:Bind Opacity}">
+                <Grid.ColumnDefinitions>
+                  <ColumnDefinition Width="48" />
+                  <ColumnDefinition Width="*" />
+                  <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <Image Width="48" Height="48" Stretch="UniformToFill">
+                  <Image.Source><BitmapImage UriSource="{x:Bind IconUri}" DecodePixelWidth="96" /></Image.Source>
+                </Image>
+                <StackPanel Grid.Column="1" Spacing="2">
+                  <TextBlock Text="{x:Bind Name}" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" />
+                  <TextBlock Text="{x:Bind Text}" Style="{StaticResource CaptionTextBlockStyle}" TextWrapping="Wrap" />
+                  <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}">
+                    <Run Text="{x:Bind State}" /><Run Text=" · " /><Run Text="{x:Bind Kind}" />
+                  </TextBlock>
+                </StackPanel>
+                <TextBlock Grid.Column="2" VerticalAlignment="Center" Style="{StaticResource BodyStrongTextBlockStyle}">
+                  <Run Text="{x:Bind GamerscoreText}" />
+                </TextBlock>
+              </Grid>
+            </DataTemplate>
+          </ListView.ItemTemplate>
+        </ListView>
+      </Grid>
+    </Grid>
+  </Grid>
+</Page>

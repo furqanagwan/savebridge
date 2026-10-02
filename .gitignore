@@ -5,6 +5,12 @@ build/
 dist/
 .venv/
 
+# .NET desktop app build output and local IDE settings
+**/bin/
+**/obj/
+.vs/
+*.csproj.user
+
 # never commit real save data
 *.sav
 containers.index
