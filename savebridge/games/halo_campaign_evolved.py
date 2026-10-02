@@ -38,12 +38,21 @@ def _class(data: bytes, expected: str) -> None:
         raise SaveError(str(e)) from None
 
 
+def ooz_path() -> Path:
+    return Path(os.environ.get('SAVEBRIDGE_OOZ',
+                Path(__file__).resolve().parents[1] / '_native' / 'ooz.exe'))
+
+
 def _decode_chunk(data: bytes, size: int) -> bytes:
     # Oodle's uncompressed Kraken block: restart + raw flag, codec 6.
     if data[:2] == b'\xcc\x06' and len(data) == size + 2:
         return data[2:]
-    helper = Path(os.environ.get('SAVEBRIDGE_OOZ',
-                  Path(__file__).resolve().parents[1] / '_native' / 'ooz.exe'))
+    return _decode_compressed_chunk(data, size, ooz_path())
+
+
+@lru_cache(maxsize=256)
+def _decode_compressed_chunk(data: bytes, size: int, helper: Path) -> bytes:
+    # Raw blocks are cheap to decode and must not evict expensive compressed ones.
     if not helper.is_file():
         raise SaveError('Halo compressed saves need ooz.exe; run native/build_ooz.ps1 '
                         'or set SAVEBRIDGE_OOZ to your ooz executable')
@@ -61,8 +70,7 @@ def _decode_chunk(data: bytes, size: int) -> bytes:
         return dst.read_bytes()
 
 
-@lru_cache(maxsize=2)
-def decode_checkpoint(data: bytes) -> bytes:
+def checkpoint_chunks(data: bytes) -> list[tuple[bytes, int]]:
     if len(data) < 49 or data[:8] != MAGIC:
         raise SaveError('invalid Halo checkpoint header')
     version, raw_size = struct.unpack_from('<II', data, 8)
@@ -81,11 +89,16 @@ def decode_checkpoint(data: bytes) -> bytes:
         expected = min(CHUNK_SIZE, raw_size - i * CHUNK_SIZE)
         if unpacked != expected or packed == 0 or offset + packed > len(data):
             raise SaveError('invalid Halo checkpoint chunk sizes')
-        chunks.append(_decode_chunk(data[offset:offset + packed], unpacked))
+        chunks.append((data[offset:offset + packed], unpacked))
         offset += packed
     if offset != len(data):
         raise SaveError('unexpected data after Halo checkpoint chunks')
-    raw = b''.join(chunks)
+    return chunks
+
+
+@lru_cache(maxsize=2)
+def decode_checkpoint(data: bytes) -> bytes:
+    raw = b''.join(_decode_chunk(packed, size) for packed, size in checkpoint_chunks(data))
     _class(raw, CORE_CLASS)
     player_mapping(raw)  # refuse files whose profile mapping we cannot locate
     return raw
@@ -97,10 +110,42 @@ def encode_checkpoint(raw: bytes) -> bytes:
     if not 0 < len(raw) <= MAX_RAW:
         raise SaveError('invalid Halo checkpoint size')
     chunks = [raw[i:i + CHUNK_SIZE] for i in range(0, len(raw), CHUNK_SIZE)]
-    return (MAGIC + struct.pack('<IIQQBQQ', 0, len(raw), ARCHIVE_TAG, CHUNK_SIZE,
-                               2, len(raw) + 2 * len(chunks), len(raw))
-            + b''.join(struct.pack('<QQ', len(c) + 2, len(c)) for c in chunks)
-            + b''.join(b'\xcc\x06' + c for c in chunks))
+    return _pack_chunks([(b'\xcc\x06' + c, len(c)) for c in chunks])
+
+
+def _pack_chunks(chunks: list[tuple[bytes, int]]) -> bytes:
+    size = sum(n for _, n in chunks)
+    return (MAGIC + struct.pack('<IIQQBQQ', 0, size, ARCHIVE_TAG, CHUNK_SIZE,
+                               2, sum(len(c) for c, _ in chunks), size)
+            + b''.join(struct.pack('<QQ', len(c), n) for c, n in chunks)
+            + b''.join(c for c, _ in chunks))
+
+
+def rebind_checkpoint(data: bytes, target: bytes) -> bytes:
+    """Retain compressed chunks unless rebinding actually changes their payload.
+
+    Replace on the full decoded payload first, including IDs that cross a chunk
+    boundary. Each archive chunk is an independent Oodle stream.
+    """
+    if len(target) != 8 or target == bytes(8):
+        raise SaveError('invalid target Halo player mapping')
+    raw = decode_checkpoint(data)
+    source = player_mapping(raw)
+    if raw.count(source) != 7:
+        raise SaveError('unsupported Halo player mapping layout (expected '
+                        'seven copies in a solo checkpoint)')
+    if source == target:
+        return data
+    rebound = raw.replace(source, target)
+    chunks = []
+    offset = 0
+    for packed, size in checkpoint_chunks(data):
+        changed = rebound[offset:offset + size]
+        if changed != raw[offset:offset + size]:
+            packed = b'\xcc\x06' + changed
+        chunks.append((packed, size))
+        offset += size
+    return _pack_chunks(chunks)
 
 
 def player_mapping(raw: bytes) -> bytes:
@@ -122,7 +167,8 @@ class HaloCampaignEvolved(UnrealFilesGame):
     process_prefixes = ('halocampaignevolved', 'meteorite')
     steam_per_account = False
     steam_subdir = 'Meteorite/Saved/SaveGames'
-    note = 'Solo saves; requires existing target checkpoints for player-ID rebinding.'
+    note = ('Solo saves; requires existing target checkpoints for player-ID rebinding. '
+            'Compact output awaits in-game confirmation.')
     files = (SaveFile('CoreSave_0', (CORE_CLASS,)),
              SaveFile('CoreSave_1', (CORE_CLASS,)),
              SaveFile('Progress', (PROGRESS_CLASS,)))
@@ -167,7 +213,7 @@ class HaloCampaignEvolved(UnrealFilesGame):
                         raise SaveError('unsupported Halo player mapping layout (expected '
                                         'seven copies in a solo checkpoint)')
                     if source != target:
-                        s = Save(s.key, {BLOB: encode_checkpoint(raw.replace(source, target))},
+                        s = Save(s.key, {BLOB: rebind_checkpoint(s.parts[BLOB], target)},
                                  s.source, s.created)
                 rebound.append(s)
             return rebound
@@ -179,6 +225,9 @@ class HaloCampaignEvolved(UnrealFilesGame):
             raise SaveError('save once in the Xbox profile first: Halo needs an existing '
                             'checkpoint to learn its player mapping')
         return save
+
+    def required_companions(self, keys: list[str]) -> list[str]:
+        return ['Progress'] if any(k.startswith('CoreSave_') for k in keys) and 'Progress' not in keys else []
 
     def describe(self, save: Save) -> str:
         if save.key == 'Progress':

@@ -259,7 +259,7 @@ def _iter_files(paths: list[Path]):
                 for info in z.infolist():
                     if not info.is_dir() and info.file_size <= MAX_IMPORT_FILE:
                         parent = info.filename.rpartition('/')[0]
-                        yield (f'{path.name}:{parent}', f'{path.name}:{info.filename}',
+                        yield (f'{path.name}:{parent}', f'{path.name}/{info.filename}',
                                z.read(info))
         elif path.is_file():
             if path.stat().st_size <= MAX_IMPORT_FILE:

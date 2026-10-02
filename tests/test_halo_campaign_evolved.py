@@ -1,6 +1,7 @@
 import struct
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest import mock
 
@@ -9,6 +10,7 @@ from savebridge.games import Save, SaveError, get_game
 from savebridge.games.halo_campaign_evolved import (
     CORE_CLASS, MAPPING_TAG, PROGRESS_CLASS, decode_checkpoint,
     encode_checkpoint, player_mapping,
+    checkpoint_chunks, rebind_checkpoint, _pack_chunks,
 )
 from savebridge.wgs import WgsStore
 from tests.helpers import empty_wgs
@@ -32,6 +34,34 @@ def save_set(mapping):
 
 
 class FormatTest(unittest.TestCase):
+    def test_rebinding_preserves_unaffected_compressed_chunks(self):
+        raw = decode_checkpoint(checkpoint())
+        raw += bytes(150000)
+        payloads = [raw[i:i + 131072] for i in range(0, len(raw), 131072)]
+        chunks = [(b'compressed-' + bytes([i]), len(b)) for i, b in enumerate(payloads)]
+        packed = _pack_chunks(chunks)
+        lookup = {c: p for (c, _), p in zip(chunks, payloads)}
+        with mock.patch('savebridge.games.halo_campaign_evolved._decode_chunk', side_effect=lambda c, n: lookup[c]):
+            converted = rebind_checkpoint(packed, TARGET)
+        after = checkpoint_chunks(converted)
+        self.assertEqual(after[1:], chunks[1:])
+        self.assertTrue(after[0][0].startswith(b'\xcc\x06'))
+        self.assertLess(len(converted), len(encode_checkpoint(raw)))
+
+    def test_rebinding_handles_id_crossing_chunk_boundary(self):
+        raw = decode_checkpoint(checkpoint())
+        tag_end = raw.find(MAPPING_TAG) + len(MAPPING_TAG) + 8
+        # One copy in metadata, five ordinary copies and one split across chunks.
+        raw = raw[:tag_end] + (b'player:' + SOURCE) * 5
+        raw += bytes(131072 - 4 - len(raw)) + SOURCE + bytes(200)
+        packed = encode_checkpoint(raw)
+        converted = rebind_checkpoint(packed, TARGET)
+        self.assertEqual(decode_checkpoint(converted), raw.replace(SOURCE, TARGET))
+
+    def test_same_profile_keeps_archive_byte_identical(self):
+        packed = checkpoint()
+        self.assertEqual(rebind_checkpoint(packed, SOURCE), packed)
+
     def test_multiple_chunks_round_trip(self):
         packed = checkpoint()
         raw = decode_checkpoint(packed)
@@ -107,6 +137,13 @@ class IntegrationTest(unittest.TestCase):
     def test_missing_progress_is_refused(self):
         self.assertEqual(self.run_cli('import', 'halo', str(self.download), '--to', 'xbox',
                                       '--only', 'CoreSave_0'), 2)
+
+    def test_imports_save_files_at_zip_root(self):
+        archive = self.local / 'saves.zip'
+        with zipfile.ZipFile(archive, 'w') as z:
+            for p in self.download.iterdir():
+                z.write(p, p.name)
+        self.assertEqual(self.run_cli('import', 'halo', str(archive), '--to', 'xbox'), 0)
 
     def test_target_without_checkpoint_is_refused(self):
         existing = {'Progress': Save('Progress', {'Data': ue5_save(PROGRESS_CLASS)})}

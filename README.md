@@ -48,7 +48,7 @@ with `./native/build_ooz.ps1`
 existing ooz executable. Import checkpoints together with `Progress.sav`.
 The Xbox profile must have saved once so its player mapping can be recovered.
 Only the observed solo checkpoint layout is supported. Rebound checkpoints
-use larger, uncompressed Oodle blocks. The default Steam destination is
+retain the original compressed chunks except where player IDs change. The default Steam destination is
 `%LOCALAPPDATA%\Meteorite\Saved\SaveGames`; native Steam folder discovery
 has not been confirmed on an installed Steam build.
 
@@ -81,6 +81,9 @@ python -m savebridge convert cuphead steam-to-xbox --dry-run    # your own saves
 python -m savebridge import cuphead C:\Downloads\save.zip --to xbox --slot-map 0:1
 python -m savebridge backups                                    # backups made so far
 python -m savebridge restore cuphead                            # undo the last write
+python -m savebridge check halo --to xbox                       # import prerequisites
+python -m savebridge check halo --from steam --to xbox          # local conversion prerequisites
+python -m savebridge inspect C:\Downloads\save.zip               # recognize saves, report safely
 ```
 
 - For Xbox, start the game once on your Xbox profile first. After writing,
@@ -90,6 +93,14 @@ python -m savebridge restore cuphead                            # undo the last 
   `--dry-run` are explained by `python -m savebridge <command> -h`.
 - Capcom games need `savebridge\_native\dsss_find.dll`; build it with
   `native\build.cmd` (Visual Studio C++ tools) or use a release build.
+
+The desktop game page checks prerequisites and explains what needs attention
+before enabling conversion. **Inspect save** accepts a file, ZIP or folder
+(including an Xbox WGS folder) and lets you copy a report. Reports omit personal
+paths, account IDs and save payloads; `inspect --json` provides structured output.
+Use `--game <id>` to restrict recognition. Inspection and prerequisite checks
+never change saves or persist recovered account keys. A successful check still
+requires the normal conversion preview to validate the incoming save selection.
 
 ## Development
 

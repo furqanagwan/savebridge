@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import zipfile
 from pathlib import Path
 
 from .core import (Target, backup_owner, backup_target, backups, ensure_game_closed,
@@ -243,6 +244,36 @@ def cmd_export(args) -> int:
     return 0
 
 
+def cmd_check(args) -> int:
+    from .diagnostics import readiness
+    report = readiness(get_game(args.game), args.to, args.source,
+                       args.steam_account, args.xbox_account)
+    if args.json:
+        # A failed check is a valid structured response, not a transport failure.
+        return _emit(report)
+    print(f'{report["game"]} -> {args.to}: ' + ('ready' if report['ready'] else 'needs attention'))
+    for check in report['checks']:
+        print(f'  {check["status"]}: {check["code"]} - '
+              + (check['message'] if check['status'] == 'pass' else check['action']))
+    print('Incoming saves and selections are checked again during conversion preview.')
+    return 0 if report['ready'] else 1
+
+
+def cmd_inspect(args) -> int:
+    from .diagnostics import inspect_saves, inspection_text
+    paths = [long_path(Path(p)) for p in args.paths]
+    if any(not p.exists() for p in paths):
+        raise SaveError('an inspection input does not exist')
+    try:
+        report = inspect_saves(paths, get_game(args.game) if args.game else None)
+    except (OSError, ValueError, RuntimeError, zipfile.BadZipFile, WgsError, SaveError):
+        raise SaveError('could not read an inspection input') from None
+    if args.json:
+        return _emit(report)
+    print(inspection_text(report))
+    return 0
+
+
 def _pick_backup(game: Game, name: str | None):
     found = backups(game.id)
     if not found:
@@ -330,6 +361,16 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser('list', parents=[accounts, as_json], help="show a game's saves on both platforms")
     p.add_argument('game')
 
+    p = sub.add_parser('check', parents=[accounts, as_json], help='check conversion prerequisites without writing')
+    p.add_argument('game')
+    p.add_argument('--to', required=True, choices=['steam', 'xbox'])
+    p.add_argument('--from', dest='source', choices=['steam', 'xbox'],
+                   help='also check a local source store; omit for downloaded-save import')
+
+    p = sub.add_parser('inspect', parents=[as_json], help='inspect saves and produce a report safe to share')
+    p.add_argument('paths', nargs='+', help='files, folders, ZIP archives or WGS stores')
+    p.add_argument('--game', help='restrict recognition to one game (default: auto-detect)')
+
     p = sub.add_parser('convert', parents=[accounts, choose, writing],
                        help="copy saves between this PC's Steam and Xbox accounts")
     p.add_argument('game')
@@ -361,7 +402,8 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     handler = {'games': cmd_games, 'accounts': cmd_accounts, 'list': cmd_list,
                'convert': cmd_convert, 'import': cmd_import, 'export': cmd_export,
-               'backups': cmd_backups, 'restore': cmd_restore}[args.cmd]
+               'backups': cmd_backups, 'restore': cmd_restore,
+               'check': cmd_check, 'inspect': cmd_inspect}[args.cmd]
     try:
         return handler(args)
     except (SaveError, WgsError) as e:

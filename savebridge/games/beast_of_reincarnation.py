@@ -41,6 +41,10 @@ class BeastOfReincarnation(UnrealFilesGame):
     def slot_key(self, n: int) -> str:
         return f'borSaveDataNormal_{n}'
 
+    def required_companions(self, keys: list[str]) -> list[str]:
+        return (['borSaveDataMeta'] if any(k.startswith('borSaveDataNormal') for k in keys)
+                and 'borSaveDataMeta' not in keys else [])
+
     def prepare(self, saves: list[Save], existing: dict[str, Save]) -> list[Save]:
         keys = {s.key for s in saves}
         if any(k.startswith('borSaveDataNormal') for k in keys) and 'borSaveDataMeta' not in keys:

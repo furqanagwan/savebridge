@@ -61,6 +61,23 @@ public sealed class SaveListing
 
 public sealed record SaveRow(string Key, string Steam, string Xbox);
 
+public sealed class ReadinessCheck
+{
+    public string Code { get; set; } = "";
+    public string Status { get; set; } = "";
+    public string Message { get; set; } = "";
+    public string Action { get; set; } = "";
+}
+
+public sealed class ReadinessReport
+{
+    public bool Ready { get; set; }
+    public List<ReadinessCheck> Checks { get; set; } = [];
+    public bool TargetReady => Checks.Any(c => c.Code == "target-account" && c.Status == "pass")
+        && Checks.Where(c => c.Code != "source-saves").All(c => c.Status == "pass");
+    public string Steps => string.Join("\n", Checks.Where(c => c.Status != "pass").Select(c => c.Action).Distinct());
+}
+
 public sealed class BackupInfo
 {
     public string Game { get; set; } = "";

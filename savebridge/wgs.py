@@ -79,6 +79,13 @@ class Index:
 
     @classmethod
     def parse(cls, b: bytes) -> 'Index':
+        try:
+            return cls._parse(b)
+        except (struct.error, UnicodeDecodeError, ValueError):
+            raise WgsError('invalid or truncated containers.index') from None
+
+    @classmethod
+    def _parse(cls, b: bytes) -> 'Index':
         version, count, reserved = struct.unpack_from('<III', b, 0)
         if version != 14:
             raise WgsError(f'unsupported containers.index version {version}')

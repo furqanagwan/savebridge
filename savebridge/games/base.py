@@ -71,6 +71,10 @@ class Game(ABC):
     verified: tuple[str, ...] = ()
     note: str = ''                      # caveat shown next to the status
 
+    def readonly(self) -> 'Game':
+        """An adapter for diagnostics that never persists discovered account data."""
+        return self
+
     # ---- which saves exist -------------------------------------------------
 
     def key_order(self, key: str) -> tuple:
@@ -83,6 +87,10 @@ class Game(ABC):
     def default_keys(self, keys: list[str]) -> list[str]:
         """Saves copied when the user doesn't pick any explicitly."""
         return keys
+
+    def required_companions(self, keys: list[str]) -> list[str]:
+        """Missing logical save keys needed alongside this selection."""
+        return []
 
     def describe(self, save: Save) -> str:
         return save.created.strftime('%Y-%m-%d %H:%M') if save.created else 'present'

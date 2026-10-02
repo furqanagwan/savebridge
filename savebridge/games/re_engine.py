@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from copy import copy
 from dataclasses import replace
 from pathlib import Path
 
@@ -53,9 +54,15 @@ def remember_id(account_id: int) -> None:
 
 
 class ReEngineGame(Game):
+    remember_ids = True
     seed: int = 0
     variant: int = 1
     flavor: int = dsss.FLAVOR_PLAIN
+
+    def readonly(self) -> 'ReEngineGame':
+        game = copy(self)
+        game.remember_ids = False
+        return game
 
     # ---- keys ---------------------------------------------------------------
 
@@ -81,7 +88,8 @@ class ReEngineGame(Game):
             raise SaveError(f'{name}: {e}') from None
         if account_id is None:
             raise SaveError(f'{name}: no account ID decrypts this save (not a {self.name} save?)')
-        remember_id(account_id)
+        if self.remember_ids:
+            remember_id(account_id)
         return dsss.decrypt(data, self.seed, dsss.parse_id(account_id, self.variant))[0]
 
     def _xbox_id(self, account: XboxAccount) -> int:
@@ -96,7 +104,8 @@ class ReEngineGame(Game):
                     f = dsss.File(data)
                     found = dsss.find_id(f, self.seed, self.variant, known_ids())
                     if found is not None:
-                        remember_id(found)
+                        if self.remember_ids:
+                            remember_id(found)
                         return found
         except (WgsError, OSError, dsss.DsssError) as ex:
             raise SaveError(f'could not read the Xbox saves to find the account key: {ex}') from None

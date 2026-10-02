@@ -482,7 +482,12 @@ build on 2026-10-02. Xbox → Steam loading has not been confirmed in game.
 
 Decompression uses the separately built GPL ooz CLI, pinned by
 `native/build_ooz.ps1`; encoding uses valid raw Oodle blocks (`CC 06`) with
-rebuilt archive sizes. No proprietary Oodle DLL is redistributed. The
+rebuilt archive sizes. Rebinding now preserves compressed bytes for unchanged
+chunks and writes raw blocks only for changed chunks, including IDs that cross
+chunk boundaries. A bounded chunk cache avoids repeating native decompression
+within a CLI operation. The compact output has automated and independent
+decoder validation; its in-game load still needs a separate confirmation.
+No proprietary Oodle DLL is redistributed. The
 Steam SaveGames destination is provisional: there is no installed Steam
 save tree on this PC to confirm account subfolders. Download import and
 the Xbox WGS mapping have been checked against actual samples.

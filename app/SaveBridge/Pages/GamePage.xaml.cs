@@ -13,6 +13,9 @@ public sealed partial class GamePage : Page
     GameInfo _game = new();
     AccountsInfo _accounts = new();
     bool _loadingAccounts;
+    bool _writing;
+    int _readinessVersion;
+    ReadinessReport? _xboxReadiness, _steamReadiness;
 
     public GamePage() => InitializeComponent();
 
@@ -91,6 +94,44 @@ public sealed partial class GamePage : Page
             Show(InfoBarSeverity.Error, "Couldn't read saves", e.Message);
         }
         finally { Busy.IsActive = false; }
+        await LoadReadinessAsync();
+    }
+
+    async Task LoadReadinessAsync()
+    {
+        var version = ++_readinessVersion;
+        _xboxReadiness = _steamReadiness = null;
+        ReadinessXbox.IsOpen = ReadinessSteam.IsOpen = false;
+        UpdateActions();
+        var accountArgs = AccountArgs().ToArray();
+        try
+        {
+            var xbox = Cli.JsonAsync<ReadinessReport>(["check", _game.Id, "--to", "xbox", "--from", "steam", .. accountArgs]);
+            var steam = Cli.JsonAsync<ReadinessReport>(["check", _game.Id, "--to", "steam", "--from", "xbox", .. accountArgs]);
+            await Task.WhenAll(xbox, steam);
+            if (version != _readinessVersion) return;
+            _xboxReadiness = await xbox;
+            _steamReadiness = await steam;
+            ShowReadiness(ReadinessXbox, "Steam → Xbox", _xboxReadiness);
+            ShowReadiness(ReadinessSteam, "Xbox → Steam", _steamReadiness);
+        }
+        catch (Exception)
+        {
+            if (version != _readinessVersion) return;
+            ReadinessXbox.Title = "Could not check conversion prerequisites";
+            ReadinessXbox.Message = "Refresh to check again. You can inspect a downloaded save for more details.";
+            ReadinessXbox.Severity = InfoBarSeverity.Warning;
+            ReadinessXbox.IsOpen = true;
+        }
+        finally { if (version == _readinessVersion) UpdateActions(); }
+    }
+
+    static void ShowReadiness(InfoBar bar, string direction, ReadinessReport report)
+    {
+        bar.Title = direction + (report.Ready ? " is ready" : " needs attention");
+        bar.Message = report.Ready ? "Your selected accounts and conversion prerequisites are ready." : report.Steps;
+        bar.Severity = report.Ready ? InfoBarSeverity.Success : InfoBarSeverity.Warning;
+        bar.IsOpen = true;
     }
 
     async Task LoadAchievementsAsync()
@@ -150,6 +191,38 @@ public sealed partial class GamePage : Page
 
     async void Refresh_Click(object sender, RoutedEventArgs e) => await LoadSavesAsync();
 
+    async void Inspect_Click(object sender, RoutedEventArgs e)
+    {
+        var folder = (string)((MenuFlyoutItem)sender).Tag == "folder";
+        var path = folder ? await PickFolderAsync() : await PickFileAsync();
+        if (path is null) return;
+        SetBusy(true);
+        try
+        {
+            var report = await Cli.RunAsync("inspect", path, "--game", _game.Id);
+            if (!report.Ok) { Show(InfoBarSeverity.Error, "Could not inspect save", LastLine(report)); return; }
+            var dialog = new ContentDialog
+            {
+                XamlRoot = XamlRoot, Title = "Save inspection", PrimaryButtonText = "Copy report",
+                CloseButtonText = "Close", DefaultButton = ContentDialogButton.Close,
+                Content = new ScrollViewer
+                {
+                    MaxHeight = 480,
+                    Content = new TextBlock { Text = report.Output, TextWrapping = TextWrapping.Wrap,
+                                              IsTextSelectionEnabled = true, FontSize = 13 },
+                },
+            };
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            {
+                var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
+                package.SetText(report.Output);
+                Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
+            }
+        }
+        catch (Exception error) { Show(InfoBarSeverity.Error, "Could not inspect save", error.Message); }
+        finally { SetBusy(false); }
+    }
+
     async void Account_Changed(object sender, SelectionChangedEventArgs e)
     {
         if (!_loadingAccounts) await LoadSavesAsync();
@@ -161,6 +234,17 @@ public sealed partial class GamePage : Page
         SetBusy(true);
         try
         {
+            var to = args[0] == "convert" ? (args[2] == "steam-to-xbox" ? "xbox" : "steam")
+                                         : args[args.IndexOf("--to") + 1];
+            var checkArgs = new List<string> { "check", _game.Id, "--to", to };
+            if (args[0] == "convert") checkArgs.AddRange(["--from", to == "xbox" ? "steam" : "xbox"]);
+            checkArgs.AddRange(AccountArgs());
+            var readiness = await Cli.JsonAsync<ReadinessReport>(checkArgs.ToArray());
+            if (!readiness.Ready)
+            {
+                Show(InfoBarSeverity.Warning, "Conversion needs attention", readiness.Steps);
+                return;
+            }
             var preview = await Cli.RunAsync([.. args, "--dry-run"]);
             Log.Text = preview.Text;
             if (!preview.Ok)
@@ -198,6 +282,7 @@ public sealed partial class GamePage : Page
                 Show(InfoBarSeverity.Error, "Something went wrong", LastLine(run));
             await LoadSavesAsync();
         }
+        catch (Exception e) { Show(InfoBarSeverity.Error, "Could not convert save", e.Message); }
         finally { SetBusy(false); }
     }
 
@@ -207,8 +292,20 @@ public sealed partial class GamePage : Page
 
     void SetBusy(bool busy)
     {
+        _writing = busy;
         Busy.IsActive = busy;
-        ToXbox.IsEnabled = ToSteam.IsEnabled = !busy;
+        SteamAccount.IsEnabled = !busy && _accounts.Steam.Count > 1;
+        XboxAccount.IsEnabled = !busy && _accounts.Xbox.Count > 1;
+        UpdateActions();
+    }
+
+    void UpdateActions()
+    {
+        ToXbox.IsEnabled = !_writing && _xboxReadiness?.Ready == true;
+        ToSteam.IsEnabled = !_writing && _steamReadiness?.Ready == true;
+        ImportSave.IsEnabled = InspectSave.IsEnabled = !_writing;
+        ImportXboxFolder.IsEnabled = ImportXboxFile.IsEnabled = !_writing && _xboxReadiness?.TargetReady == true;
+        ImportSteamFolder.IsEnabled = ImportSteamFile.IsEnabled = !_writing && _steamReadiness?.TargetReady == true;
     }
 
     void Show(InfoBarSeverity severity, string title, string message)

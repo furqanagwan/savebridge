@@ -127,3 +127,7 @@ class UnrealFilesGame(Game):
                 raise SaveError(f'{", ".join(have)} must be copied together with '
                                 f'{", ".join(missing)}')
         return saves
+
+    def required_companions(self, keys: list[str]) -> list[str]:
+        groups = {f.group for f in self.files if f.group and f.name in keys}
+        return [f.name for f in self.files if f.group in groups and f.name not in keys]
