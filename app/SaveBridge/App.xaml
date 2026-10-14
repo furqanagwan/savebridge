@@ -6,6 +6,46 @@
       <ResourceDictionary.MergedDictionaries>
         <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
       </ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Default">
+          <SolidColorBrush x:Key="HeroScrimBrush" Color="#E6202020" />
+          <SolidColorBrush x:Key="ChipBrush" Color="#33FFFFFF" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="HeroScrimBrush" Color="#E6F3F3F3" />
+          <SolidColorBrush x:Key="ChipBrush" Color="#1A000000" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+
+      <!-- Xbox green accent -->
+      <Color x:Key="SystemAccentColor">#107C10</Color>
+      <Color x:Key="SystemAccentColorLight1">#2A9A2A</Color>
+      <Color x:Key="SystemAccentColorLight2">#52B852</Color>
+      <Color x:Key="SystemAccentColorLight3">#86D486</Color>
+      <Color x:Key="SystemAccentColorDark1">#0E6A0E</Color>
+      <Color x:Key="SystemAccentColorDark2">#0B560B</Color>
+      <Color x:Key="SystemAccentColorDark3">#073F07</Color>
+
+
+      <!-- Small rounded label used for store and status chips -->
+      <Style x:Key="ChipStyle" TargetType="Border">
+        <Setter Property="Background" Value="{ThemeResource ChipBrush}" />
+        <Setter Property="CornerRadius" Value="4" />
+        <Setter Property="Padding" Value="6,2" />
+      </Style>
+
+      <!-- Controller button badges for the hint bar -->
+      <Style x:Key="PadButtonStyle" TargetType="Border">
+        <Setter Property="Width" Value="22" />
+        <Setter Property="Height" Value="22" />
+        <Setter Property="CornerRadius" Value="11" />
+      </Style>
+      <Style x:Key="PadBumperStyle" TargetType="Border">
+        <Setter Property="Height" Value="20" />
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="6,0" />
+        <Setter Property="Background" Value="{ThemeResource ControlStrongFillColorDefaultBrush}" />
+      </Style>
     </ResourceDictionary>
   </Application.Resources>
 </Application>

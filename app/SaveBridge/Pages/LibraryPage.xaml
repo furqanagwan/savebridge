@@ -1,0 +1,134 @@
+<Page x:Class="SaveBridge.Pages.LibraryPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:m="using:SaveBridge.Models"
+      xmlns:s="using:SaveBridge.Services">
+  <ScrollViewer x:Name="Scroller" XYFocusKeyboardNavigation="Enabled">
+    <StackPanel Spacing="16" Padding="0,0,0,32">
+
+      <!-- Featured game -->
+      <Grid x:Name="Hero" Height="360" Margin="24,8,24,0" CornerRadius="12">
+        <ParallaxView Source="{x:Bind Scroller}" VerticalShift="80">
+          <Image x:Name="HeroImage" Stretch="UniformToFill" VerticalAlignment="Center" />
+        </ParallaxView>
+        <Rectangle>
+          <Rectangle.Fill>
+            <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+              <GradientStop Color="#E0101010" Offset="0" />
+              <GradientStop Color="#99101010" Offset="0.45" />
+              <GradientStop Color="#00101010" Offset="0.8" />
+            </LinearGradientBrush>
+          </Rectangle.Fill>
+        </Rectangle>
+        <StackPanel VerticalAlignment="Bottom" Padding="40,0,40,36" Spacing="12" MaxWidth="640" HorizontalAlignment="Left">
+          <Image x:Name="HeroLogo" MaxHeight="110" MaxWidth="380" HorizontalAlignment="Left" Stretch="Uniform" />
+          <TextBlock x:Name="HeroTitle" Style="{StaticResource TitleLargeTextBlockStyle}" Foreground="White" TextWrapping="Wrap" />
+          <TextBlock x:Name="HeroText" Foreground="#DDFFFFFF" TextWrapping="Wrap" MaxLines="3" TextTrimming="WordEllipsis" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button x:Name="HeroOpen" Style="{StaticResource AccentButtonStyle}" Click="HeroOpen_Click" Padding="20,8">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <FontIcon Glyph="&#xE8B7;" FontSize="16" /><TextBlock Text="Open saves" />
+              </StackPanel>
+            </Button>
+            <Button x:Name="HeroNext" Click="HeroNext_Click" ToolTipService.ToolTip="Next featured game"
+                    AutomationProperties.Name="Next featured game">
+              <FontIcon Glyph="&#xE893;" FontSize="16" />
+            </Button>
+          </StackPanel>
+        </StackPanel>
+        <PipsPager x:Name="HeroPips" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,20"
+                   MaxVisiblePips="8" SelectedIndexChanged="HeroPips_SelectedIndexChanged" IsTabStop="False" />
+      </Grid>
+
+      <!-- Filters -->
+      <Grid Margin="24,0" ColumnSpacing="16">
+        <Grid.ColumnDefinitions>
+          <ColumnDefinition Width="*" />
+          <ColumnDefinition Width="Auto" />
+          <ColumnDefinition Width="Auto" />
+        </Grid.ColumnDefinitions>
+        <SelectorBar x:Name="Filters" SelectionChanged="Filters_SelectionChanged">
+          <SelectorBarItem Text="All games" IsSelected="True" Tag="all">
+            <SelectorBarItem.Icon><FontIcon Glyph="&#xE7FC;" /></SelectorBarItem.Icon>
+          </SelectorBarItem>
+          <SelectorBarItem Text="Installed" Tag="installed">
+            <SelectorBarItem.Icon><FontIcon Glyph="&#xE896;" /></SelectorBarItem.Icon>
+          </SelectorBarItem>
+          <SelectorBarItem Text="Have saves" Tag="saves">
+            <SelectorBarItem.Icon><FontIcon Glyph="&#xE74E;" /></SelectorBarItem.Icon>
+          </SelectorBarItem>
+          <SelectorBarItem Text="Verified" Tag="verified">
+            <SelectorBarItem.Icon><FontIcon Glyph="&#xE73E;" /></SelectorBarItem.Icon>
+          </SelectorBarItem>
+        </SelectorBar>
+        <TextBlock x:Name="Count" Grid.Column="1" VerticalAlignment="Center"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        <ComboBox x:Name="Sort" Grid.Column="2" SelectedIndex="0" SelectionChanged="Sort_SelectionChanged"
+                  MinWidth="170" AutomationProperties.Name="Sort games">
+          <ComboBoxItem Content="Sort: name" />
+          <ComboBoxItem Content="Sort: last saved" />
+          <ComboBoxItem Content="Sort: release date" />
+        </ComboBox>
+      </Grid>
+
+      <InfoBar x:Name="Error" Margin="24,0" Severity="Error" IsClosable="True" />
+      <ProgressBar x:Name="LoadingBar" Margin="24,0" IsIndeterminate="True" />
+
+      <!-- Covers -->
+      <GridView x:Name="Games" Margin="16,0" SelectionMode="None" IsItemClickEnabled="True" ItemClick="Games_ItemClick"
+                ScrollViewer.VerticalScrollMode="Disabled" ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                XYFocusKeyboardNavigation="Enabled" TabFocusNavigation="Once">
+        <GridView.ItemContainerStyle>
+          <Style TargetType="GridViewItem" BasedOn="{StaticResource DefaultGridViewItemStyle}">
+            <Setter Property="Margin" Value="8" />
+            <Setter Property="CornerRadius" Value="10" />
+          </Style>
+        </GridView.ItemContainerStyle>
+        <GridView.ItemTemplate>
+          <DataTemplate x:DataType="m:LibraryGame">
+            <StackPanel Width="190" Spacing="6" AutomationProperties.Name="{x:Bind Name}">
+              <Grid Height="285" CornerRadius="8" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                <!-- placeholder until (or unless) store art arrives -->
+                <Grid Visibility="{x:Bind s:Ui.Hide(HasCover), Mode=OneWay}">
+                  <Grid.Background>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                      <GradientStop Color="#1B4D1B" Offset="0" />
+                      <GradientStop Color="#0B1F0B" Offset="1" />
+                    </LinearGradientBrush>
+                  </Grid.Background>
+                  <TextBlock Text="{x:Bind Name}" Foreground="White" TextWrapping="Wrap" Margin="16"
+                             Style="{StaticResource SubtitleTextBlockStyle}" VerticalAlignment="Center" TextAlignment="Center" />
+                </Grid>
+                <Image Stretch="UniformToFill" Visibility="{x:Bind s:Ui.Show(HasCover), Mode=OneWay}">
+                  <Image.Source>
+                    <BitmapImage UriSource="{x:Bind CoverUri, Mode=OneWay}" DecodePixelWidth="380" />
+                  </Image.Source>
+                </Image>
+                <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Bottom" Margin="8">
+                  <Border Background="#CC171A21" CornerRadius="4" Padding="6,2"
+                          Visibility="{x:Bind s:Ui.Show(SteamInstalled), Mode=OneWay}">
+                    <TextBlock Text="STEAM" FontSize="11" FontWeight="SemiBold" Foreground="White" />
+                  </Border>
+                  <Border Background="#E6107C10" CornerRadius="4" Padding="6,2"
+                          Visibility="{x:Bind s:Ui.Show(XboxInstalled), Mode=OneWay}">
+                    <TextBlock Text="XBOX" FontSize="11" FontWeight="SemiBold" Foreground="White" />
+                  </Border>
+                </StackPanel>
+                <FontIcon Glyph="&#xE73E;" FontSize="14" Foreground="White" Margin="8"
+                          HorizontalAlignment="Right" VerticalAlignment="Top"
+                          Visibility="{x:Bind s:Ui.Show(Verified)}" ToolTipService.ToolTip="Verified in game" />
+              </Grid>
+              <TextBlock Text="{x:Bind Name}" Style="{StaticResource BodyStrongTextBlockStyle}"
+                         TextTrimming="CharacterEllipsis" />
+              <TextBlock Style="{StaticResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                         TextTrimming="CharacterEllipsis">
+                <Run Text="{x:Bind SteamState, Mode=OneWay}" /><Run Text="  ·  " /><Run Text="{x:Bind XboxState, Mode=OneWay}" />
+              </TextBlock>
+            </StackPanel>
+          </DataTemplate>
+        </GridView.ItemTemplate>
+      </GridView>
+    </StackPanel>
+  </ScrollViewer>
+</Page>

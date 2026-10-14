@@ -35,8 +35,8 @@
                Title="About achievements and imported saves">
         <InfoBar.Content>
           <TextBlock TextWrapping="Wrap" Margin="0,0,0,12">
-            <Run FontWeight="SemiBold">Title-managed</Run><Run> achievements are awarded by the game itself; many games re-check them when a save loads, so some can unlock after importing a save. </Run>
-            <Run FontWeight="SemiBold">Event-based</Run><Run> achievements are counted by Xbox Live from events the game sends while you play (older titles such as Halo MCC or Forza Horizon 3). A save file can't carry that progress, so you have to play those parts again. Story achievements only unlock for what you play after the save point. savebridge only reads your achievements; it never changes them.</Run>
+            <Run FontWeight="SemiBold">Title-managed</Run><Run Text=" achievements are awarded by the game itself; many games re-check them when a save loads, so some can unlock after importing a save. " />
+            <Run FontWeight="SemiBold">Event-based</Run><Run Text=" achievements are counted by Xbox Live from events the game sends while you play (older titles such as Halo MCC or Forza Horizon 3). A save file can't carry that progress, so you have to play those parts again. Story achievements only unlock for what you play after the save point. savebridge only reads your achievements; it never changes them." />
           </TextBlock>
         </InfoBar.Content>
       </InfoBar>

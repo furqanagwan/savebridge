@@ -1,6 +1,8 @@
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Navigation;
 using SaveBridge.Models;
 using SaveBridge.Services;
@@ -8,12 +10,11 @@ using Windows.Storage.Pickers;
 
 namespace SaveBridge.Pages;
 
-public sealed partial class GamePage : Page
+public sealed partial class GamePage : Page, IAppPage
 {
-    GameInfo _game = new();
+    LibraryGame _game = new(new GameInfo());
     AccountsInfo _accounts = new();
-    bool _loadingAccounts;
-    bool _writing;
+    bool _loadingAccounts, _writing, _achievementsLoaded;
     int _readinessVersion;
     ReadinessReport? _xboxReadiness, _steamReadiness;
 
@@ -21,21 +22,99 @@ public sealed partial class GamePage : Page
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
-        _game = (GameInfo)e.Parameter;
-        GameTitle.Text = _game.Name;
-        StatusText.Text = _game.Status;
-        StatusIcon.Glyph = _game.StatusGlyph;
-        var brush = (Brush)Application.Current.Resources[
-            _game.Status == "Verified in game" ? "SystemFillColorSuccessBrush" : "SystemFillColorCautionBrush"];
-        StatusIcon.Foreground = StatusText.Foreground = brush;
-        Note.Text = _game.Note;
-        Note.Visibility = string.IsNullOrEmpty(_game.Note) ? Visibility.Collapsed : Visibility.Visible;
+        var id = e.Parameter as string ?? "";
+        await Library.Instance.LoadAsync();
+        _game = Library.Instance.Find(id) ?? new LibraryGame(new GameInfo { Id = id, Name = id });
+        _game.PropertyChanged += (_, _) => DispatcherQueue.TryEnqueue(ShowHeader);
+        ShowHeader();
+        Crumbs.ItemsSource = new[] { "Library", _game.Name };
+        Note.Title = "Known limits";
+        Note.Message = _game.Info.Note;
+        Note.IsOpen = !string.IsNullOrEmpty(_game.Info.Note);
         await LoadAccountsAsync();
         await LoadSavesAsync();
-        await LoadAchievementsAsync();
     }
 
-    // ---- loading ----------------------------------------------------------------
+    // ---- header and locations ---------------------------------------------------------
+
+    void ShowHeader()
+    {
+        HeroImage.Source = _game.HeroUri is { } hero ? new BitmapImage(hero) : null;
+        Logo.Source = _game.LogoUri is { } logo ? new BitmapImage(logo) : null;
+        Logo.Visibility = Ui.Show(_game.HasLogo);
+        GameTitle.Text = _game.Name;
+        GameTitle.Visibility = Ui.Hide(_game.HasLogo);
+        Credits.Text = _game.Credits;
+        Description.Text = _game.Description;
+        Description.Visibility = Ui.ShowText(_game.Description);
+        var verified = _game.Status == "Verified in game";
+        StatusChip.Background = new SolidColorBrush(verified ? ColorHelper.FromArgb(0xE6, 0x10, 0x7C, 0x10)
+                                                             : ColorHelper.FromArgb(0xE6, 0x9D, 0x5D, 0x00));
+        StatusIcon.Glyph = verified ? "" : "";
+        StatusText.Text = _game.Status;
+        ShowLocations();
+    }
+
+    void ShowLocations()
+    {
+        var loc = _game.Location;
+        if (loc is null)
+        {
+            SteamInstall.Text = XboxInstall.Text = "Looking…";
+            return;
+        }
+        var s = loc.Steam;
+        SteamInstall.Text = s.Installed ? "Installed" : "Not installed";
+        SteamDir.Text = s.InstallDir ?? "Not installed on this PC";
+        SteamDirOpen.Tag = s.InstallDir;
+        SteamDirOpen.IsEnabled = s.Installed;
+        SteamSaves.ItemsSource = s.Saves;
+        SteamNote.Text = s.Error ?? (s.PerPc
+            ? "This game keeps one set of Steam saves for the whole PC."
+            : "Steam keeps a save folder per Steam account. Steam Cloud syncs it when the game closes.");
+
+        var x = loc.Xbox;
+        XboxInstall.Text = string.IsNullOrEmpty(_game.Info.XboxPackage) ? "No Xbox PC version supported"
+                         : x.Installed ? "Installed" : "Not installed";
+        XboxDir.Text = x.InstallDir ?? (x.Installed ? "Installed (folder protected by Windows)" : "Not installed on this PC");
+        XboxDirOpen.Tag = x.InstallDir;
+        XboxDirOpen.IsEnabled = x.InstallDir != null;
+        XboxSaves.ItemsSource = x.Saves;
+        XboxNote.Text = x.Error ?? (x.PerPc
+            ? "The Xbox version writes plain files on this PC; they don't sync to the Xbox cloud."
+            : x.Saves.Count == 0
+                ? "No Xbox save folder yet. Start the Xbox version once while signed in, and save."
+                : "Xbox cloud saves: one folder per Xbox profile, uploaded by the Xbox app while the game runs.");
+    }
+
+    void OpenFolder_Click(object sender, RoutedEventArgs e) => Ui.OpenFolder(((FrameworkElement)sender).Tag as string);
+
+    void CopyPath_Click(object sender, RoutedEventArgs e)
+    {
+        if (((FrameworkElement)sender).Tag is string path)
+        {
+            Ui.CopyText(path);
+            Show(InfoBarSeverity.Success, "Copied", path);
+        }
+    }
+
+    void Crumbs_ItemClicked(BreadcrumbBar sender, BreadcrumbBarItemClickedEventArgs args)
+    {
+        if (args.Index == 0) App.Window!.Navigate(typeof(LibraryPage));
+    }
+
+    async void Tabs_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
+    {
+        var tag = sender.SelectedItem?.Tag as string;
+        SavesPanel.Visibility = Ui.Show(tag == "saves");
+        LocationsPanel.Visibility = Ui.Show(tag == "locations");
+        AchievementsPanel.Visibility = Ui.Show(tag == "achievements");
+        BackupsPanel.Visibility = Ui.Show(tag == "backups");
+        if (tag == "achievements" && !_achievementsLoaded) await LoadAchievementsAsync();
+        if (tag == "backups") await LoadBackupsAsync();
+    }
+
+    // ---- accounts and saves -------------------------------------------------------------
 
     async Task LoadAccountsAsync()
     {
@@ -53,13 +132,9 @@ public sealed partial class GamePage : Page
             XboxAccount.ItemsSource = _accounts.Xbox;
             XboxAccount.SelectedItem = _accounts.Xbox.FirstOrDefault();
             XboxAccount.IsEnabled = _accounts.Xbox.Count > 1;
-            XboxAccount.PlaceholderText = _accounts.XboxPerPc ? "Saves are per PC"
-                : "Start the Xbox version once on your profile";
+            XboxAccount.PlaceholderText = _accounts.XboxPerPc ? "Saves are per PC" : "Start the Xbox version once on your profile";
         }
-        catch (Exception e)
-        {
-            Show(InfoBarSeverity.Error, "Couldn't read accounts", e.Message);
-        }
+        catch (Exception e) { Show(InfoBarSeverity.Error, "Couldn't read accounts", e.Message); }
         finally { _loadingAccounts = false; }
     }
 
@@ -75,24 +150,22 @@ public sealed partial class GamePage : Page
         try
         {
             var list = await Cli.JsonAsync<SaveListing>(["list", _game.Id, .. AccountArgs()]);
-            var keys = list.Steam.Saves.Keys.Concat(list.Xbox.Saves.Keys).Distinct().ToList();
-            var order = keys.ToDictionary(k => k, k => (list.Steam.Saves.Keys.ToList().IndexOf(k) is var i and >= 0 ? i : 1000)
-                                                        + (list.Xbox.Saves.Keys.ToList().IndexOf(k) is var j and >= 0 ? j : 1000));
-            Saves.ItemsSource = keys.OrderBy(k => order[k]).Select(k => new SaveRow(k,
+            var steamKeys = list.Steam.Saves.Keys.ToList();
+            var xboxKeys = list.Xbox.Saves.Keys.ToList();
+            var keys = steamKeys.Concat(xboxKeys).Distinct()
+                .OrderBy(k => (steamKeys.IndexOf(k) is var i and >= 0 ? i : 1000) + (xboxKeys.IndexOf(k) is var j and >= 0 ? j : 1000))
+                .ToList();
+            Saves.ItemsSource = keys.Select(k => new SaveRow(k,
                 list.Steam.Saves.GetValueOrDefault(k) ?? "—", list.Xbox.Saves.GetValueOrDefault(k) ?? "—")).ToList();
             var problems = new[] { ("Steam", list.Steam), ("Xbox", list.Xbox) }
-                .SelectMany(p => (p.Item2.Error is { } err ? [err] : p.Item2.Warnings).Select(w => $"{p.Item1}: {w}"))
-                .ToList();
+                .SelectMany(p => (p.Item2.Error is { } err ? [err] : p.Item2.Warnings).Select(w => $"{p.Item1}: {w}"));
             Log.Text = string.Join("\n", new[] { $"Steam: {list.Steam.Path ?? list.Steam.Error}",
                                                  $"Xbox:  {list.Xbox.Path ?? list.Xbox.Error}" }.Concat(problems));
             SavesHint.Text = keys.Count == 0
-                ? "No saves found on either store yet."
-                : "Tick saves to copy only those; with none ticked, the game's usual set is copied.";
+                ? "No saves found on either store yet. Import a downloaded save, or play and save once."
+                : "Select saves to copy only those; with none selected, the game's usual set is copied.";
         }
-        catch (Exception e)
-        {
-            Show(InfoBarSeverity.Error, "Couldn't read saves", e.Message);
-        }
+        catch (Exception e) { Show(InfoBarSeverity.Error, "Couldn't read saves", e.Message); }
         finally { Busy.IsActive = false; }
         await LoadReadinessAsync();
     }
@@ -118,8 +191,8 @@ public sealed partial class GamePage : Page
         catch (Exception)
         {
             if (version != _readinessVersion) return;
-            ReadinessXbox.Title = "Could not check conversion prerequisites";
-            ReadinessXbox.Message = "Refresh to check again. You can inspect a downloaded save for more details.";
+            ReadinessXbox.Title = "Couldn't check what a conversion needs";
+            ReadinessXbox.Message = "Refresh to check again, or inspect a downloaded save for details.";
             ReadinessXbox.Severity = InfoBarSeverity.Warning;
             ReadinessXbox.IsOpen = true;
         }
@@ -129,36 +202,76 @@ public sealed partial class GamePage : Page
     static void ShowReadiness(InfoBar bar, string direction, ReadinessReport report)
     {
         bar.Title = direction + (report.Ready ? " is ready" : " needs attention");
-        bar.Message = report.Ready ? "Your selected accounts and conversion prerequisites are ready." : report.Steps;
+        bar.Message = report.Ready ? "Your selected accounts and everything the conversion needs are ready." : report.Steps;
         bar.Severity = report.Ready ? InfoBarSeverity.Success : InfoBarSeverity.Warning;
         bar.IsOpen = true;
     }
 
+    async void Account_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_loadingAccounts) await LoadSavesAsync();
+    }
+
+    // ---- achievements and backups -------------------------------------------------------
+
     async Task LoadAchievementsAsync()
     {
-        Achievements.IsOpen = false;
         var xbl = XboxLive.Instance;
-        if (!xbl.SignedIn || string.IsNullOrEmpty(_game.XboxPackage)) return;
+        AchievementsSignedOut.Visibility = Ui.Hide(xbl.SignedIn);
+        AchievementsSignedIn.Visibility = Ui.Show(xbl.SignedIn);
+        if (!xbl.SignedIn) return;
+        if (string.IsNullOrEmpty(_game.Info.XboxPackage))
+        {
+            AchievementTitle.Text = "This game has no Xbox PC version in savebridge.";
+            return;
+        }
+        AchievementTitle.Text = "Loading your achievements…";
+        AchievementRing.IsIndeterminate = true;
         try
         {
             var title = (await xbl.GetTitlesAsync()).FirstOrDefault(t =>
-                t.Pfn?.StartsWith(_game.XboxPackage + "_", StringComparison.OrdinalIgnoreCase) == true);
-            if (title is null) return;
+                t.Pfn?.StartsWith(_game.Info.XboxPackage + "_", StringComparison.OrdinalIgnoreCase) == true);
+            if (title is null)
+            {
+                AchievementTitle.Text = "You haven't played the Xbox version yet.";
+                AchievementKinds.Text = "";
+                return;
+            }
             var list = await xbl.GetAchievementsAsync(title.TitleId);
             var events = list.Count(a => !a.TitleManaged);
-            Achievements.Title = $"Your Xbox achievements: {title.Progress}";
-            Achievements.Message = list.Count == 0 ? "" : events == 0
-                ? "All of this game's achievements are title-managed: the game awards them itself, so some may unlock after loading an imported save."
-                : $"{events} of {list.Count} achievements are event-based: Xbox Live counts them from what you do in game, so an imported save can't unlock them.";
-            Achievements.IsOpen = true;
+            AchievementRing.Value = title.Percent;
+            AchievementTitle.Text = title.Progress;
+            AchievementKinds.Text = list.Count == 0 ? "" : events == 0
+                ? "All title-managed: the game awards them itself, so some may unlock soon after loading an imported save."
+                : $"{events} of {list.Count} are event-based: Xbox Live counts them from play, so an imported save can't unlock them.";
+            AchievementList.ItemsSource = list.OrderBy(a => a.Unlocked).ThenBy(a => a.Name).ToList();
+            _achievementsLoaded = true;
         }
-        catch
-        {
-            // Achievements are a bonus; the page works without them.
-        }
+        catch (Exception e) { AchievementTitle.Text = "Couldn't load achievements: " + e.Message; }
+        finally { AchievementRing.IsIndeterminate = false; }
     }
 
-    // ---- actions ----------------------------------------------------------------
+    void SignIn_Click(object sender, RoutedEventArgs e) => App.Window!.Navigate(typeof(ProfilePage));
+
+    async Task LoadBackupsAsync()
+    {
+        try
+        {
+            var list = await Cli.JsonAsync<List<BackupInfo>>("backups", _game.Id);
+            BackupList.ItemsSource = list;
+            NoBackups.Visibility = Ui.Show(list.Count == 0);
+        }
+        catch (Exception e) { Show(InfoBarSeverity.Error, "Couldn't list backups", e.Message); }
+    }
+
+    async void Restore_Click(object sender, RoutedEventArgs e)
+    {
+        var b = (BackupInfo)((Button)sender).Tag;
+        await RunWriteAsync(["restore", _game.Id, b.Name], $"Restore the {b.Where} saves from {b.When}?", "Restore");
+        await LoadBackupsAsync();
+    }
+
+    // ---- writing --------------------------------------------------------------------------
 
     List<string> Selection() => Saves.SelectedItems.OfType<SaveRow>().Select(r => r.Key).ToList();
 
@@ -167,40 +280,38 @@ public sealed partial class GamePage : Page
         var args = new List<string>();
         var keys = Selection();
         if (keys.Count > 0) { args.Add("--only"); args.Add(string.Join(",", keys)); }
-        else if (IncludeAll.IsChecked == true) args.Add("--all");
+        else if (IncludeAll.IsOn) args.Add("--all");
         if (!string.IsNullOrWhiteSpace(SlotMap.Text)) { args.Add("--slot-map"); args.Add(SlotMap.Text.Trim()); }
         args.AddRange(AccountArgs());
         return args;
     }
 
     async void ToXbox_Click(object sender, RoutedEventArgs e) =>
-        await PreviewAndWriteAsync(["convert", _game.Id, "steam-to-xbox", .. WriteOptions()], "Copy Steam saves to Xbox?");
+        await CheckedWriteAsync(["convert", _game.Id, "steam-to-xbox", .. WriteOptions()], "xbox", "steam", "Copy Steam saves to Xbox?");
 
     async void ToSteam_Click(object sender, RoutedEventArgs e) =>
-        await PreviewAndWriteAsync(["convert", _game.Id, "xbox-to-steam", .. WriteOptions()], "Copy Xbox saves to Steam?");
+        await CheckedWriteAsync(["convert", _game.Id, "xbox-to-steam", .. WriteOptions()], "steam", "xbox", "Copy Xbox saves to Steam?");
 
     async void Import_Click(object sender, RoutedEventArgs e)
     {
         var parts = ((string)((MenuFlyoutItem)sender).Tag).Split('|');
         var path = parts[1] == "folder" ? await PickFolderAsync() : await PickFileAsync();
         if (path is null) return;
-        var into = parts[0] == "xbox" ? "Xbox" : "Steam";
-        await PreviewAndWriteAsync(["import", _game.Id, path, "--to", parts[0], .. WriteOptions()],
-                                   $"Import this save into {into}?");
+        await CheckedWriteAsync(["import", _game.Id, path, "--to", parts[0], .. WriteOptions()], parts[0], null,
+                                $"Import this save into {(parts[0] == "xbox" ? "Xbox" : "Steam")}?");
     }
 
-    async void Refresh_Click(object sender, RoutedEventArgs e) => await LoadSavesAsync();
+    async void Refresh_Click(object sender, RoutedEventArgs e) => await RefreshAsync();
 
     async void Inspect_Click(object sender, RoutedEventArgs e)
     {
-        var folder = (string)((MenuFlyoutItem)sender).Tag == "folder";
-        var path = folder ? await PickFolderAsync() : await PickFileAsync();
+        var path = (string)((MenuFlyoutItem)sender).Tag == "folder" ? await PickFolderAsync() : await PickFileAsync();
         if (path is null) return;
         SetBusy(true);
         try
         {
             var report = await Cli.RunAsync("inspect", path, "--game", _game.Id);
-            if (!report.Ok) { Show(InfoBarSeverity.Error, "Could not inspect save", LastLine(report)); return; }
+            if (!report.Ok) { Show(InfoBarSeverity.Error, "Couldn't inspect the save", Writes.LastLine(report)); return; }
             var dialog = new ContentDialog
             {
                 XamlRoot = XamlRoot, Title = "Save inspection", PrimaryButtonText = "Copy report",
@@ -208,87 +319,66 @@ public sealed partial class GamePage : Page
                 Content = new ScrollViewer
                 {
                     MaxHeight = 480,
-                    Content = new TextBlock { Text = report.Output, TextWrapping = TextWrapping.Wrap,
-                                              IsTextSelectionEnabled = true, FontSize = 13 },
+                    Content = new TextBlock { Text = report.Output, TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true },
                 },
             };
-            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
-            {
-                var package = new Windows.ApplicationModel.DataTransfer.DataPackage();
-                package.SetText(report.Output);
-                Windows.ApplicationModel.DataTransfer.Clipboard.SetContent(package);
-            }
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary) Ui.CopyText(report.Output);
         }
-        catch (Exception error) { Show(InfoBarSeverity.Error, "Could not inspect save", error.Message); }
+        catch (Exception error) { Show(InfoBarSeverity.Error, "Couldn't inspect the save", error.Message); }
         finally { SetBusy(false); }
     }
 
-    async void Account_Changed(object sender, SelectionChangedEventArgs e)
+    /// <summary>Check prerequisites, then preview and write.</summary>
+    async Task CheckedWriteAsync(List<string> args, string to, string? from, string question)
     {
-        if (!_loadingAccounts) await LoadSavesAsync();
+        Result.IsOpen = false;
+        SetBusy(true);
+        ReadinessReport readiness;
+        try
+        {
+            var check = new List<string> { "check", _game.Id, "--to", to };
+            if (from != null) check.AddRange(["--from", from]);
+            check.AddRange(AccountArgs());
+            readiness = await Cli.JsonAsync<ReadinessReport>(check.ToArray());
+        }
+        catch (Exception e)
+        {
+            Show(InfoBarSeverity.Error, "Couldn't check the conversion", e.Message);
+            SetBusy(false);
+            return;
+        }
+        if (!readiness.Ready)
+        {
+            Show(InfoBarSeverity.Warning, "This needs attention first", readiness.Steps);
+            SetBusy(false);
+            return;
+        }
+        await RunWriteAsync(args, question);
     }
 
-    async Task PreviewAndWriteAsync(List<string> args, string question)
+    async Task RunWriteAsync(List<string> args, string question, string confirm = "Write")
     {
         Result.IsOpen = false;
         SetBusy(true);
         try
         {
-            var to = args[0] == "convert" ? (args[2] == "steam-to-xbox" ? "xbox" : "steam")
-                                         : args[args.IndexOf("--to") + 1];
-            var checkArgs = new List<string> { "check", _game.Id, "--to", to };
-            if (args[0] == "convert") checkArgs.AddRange(["--from", to == "xbox" ? "steam" : "xbox"]);
-            checkArgs.AddRange(AccountArgs());
-            var readiness = await Cli.JsonAsync<ReadinessReport>(checkArgs.ToArray());
-            if (!readiness.Ready)
+            var r = await Writes.PreviewAndRunAsync(XamlRoot, args, question, confirm);
+            Log.Text = r.Log;
+            switch (r.Outcome)
             {
-                Show(InfoBarSeverity.Warning, "Conversion needs attention", readiness.Steps);
-                return;
+                case WriteOutcome.Done: Show(InfoBarSeverity.Success, "Done", r.Summary); break;
+                case WriteOutcome.Refused: Show(InfoBarSeverity.Error, "Nothing was written", r.Summary); break;
+                case WriteOutcome.Failed: Show(InfoBarSeverity.Error, "Something went wrong", r.Summary); break;
             }
-            var preview = await Cli.RunAsync([.. args, "--dry-run"]);
-            Log.Text = preview.Text;
-            if (!preview.Ok)
+            if (r.Outcome == WriteOutcome.Done)
             {
-                Show(InfoBarSeverity.Error, "Nothing was written", LastLine(preview));
-                return;
+                await LoadSavesAsync();
+                await Library.Instance.RefreshLocationAsync(_game.Id);
             }
-            var dialog = new ContentDialog
-            {
-                XamlRoot = XamlRoot,
-                Title = question,
-                PrimaryButtonText = "Write",
-                CloseButtonText = "Cancel",
-                DefaultButton = ContentDialogButton.Close,
-                Content = new ScrollViewer
-                {
-                    MaxHeight = 420,
-                    Content = new TextBlock
-                    {
-                        Text = preview.Output.Replace("Dry run: nothing written.", "").Trim() +
-                               "\n\nThe current saves are backed up first. Make sure the game is closed.",
-                        FontFamily = new FontFamily("Consolas"), FontSize = 12,
-                        IsTextSelectionEnabled = true, TextWrapping = TextWrapping.Wrap,
-                    },
-                },
-            };
-            if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
-            var run = await Cli.RunAsync(args);
-            Log.Text = run.Text;
-            if (run.Ok)
-                Show(InfoBarSeverity.Success, "Done", string.Join(" ", run.Output.Split('\n')
-                    .Where(l => l.StartsWith("Wrote") || l.StartsWith("Open the game") || l.StartsWith("If Steam")
-                                || l.StartsWith("This game's"))));
-            else
-                Show(InfoBarSeverity.Error, "Something went wrong", LastLine(run));
-            await LoadSavesAsync();
         }
-        catch (Exception e) { Show(InfoBarSeverity.Error, "Could not convert save", e.Message); }
+        catch (Exception e) { Show(InfoBarSeverity.Error, "Couldn't write the saves", e.Message); }
         finally { SetBusy(false); }
     }
-
-    static string LastLine(CliResult r) =>
-        (r.Error.Length > 0 ? r.Error : r.Output).Split('\n').LastOrDefault(l => l.Trim().Length > 0)?
-        .Replace("error: ", "") ?? "Unknown error";
 
     void SetBusy(bool busy)
     {
@@ -316,7 +406,19 @@ public sealed partial class GamePage : Page
         Result.IsOpen = true;
     }
 
-    // ---- pickers (unpackaged apps must attach them to the window) ----------------
+    // ---- IAppPage ---------------------------------------------------------------------------
+
+    public async Task RefreshAsync()
+    {
+        await Library.Instance.RefreshLocationAsync(_game.Id);
+        await LoadSavesAsync();
+        if (AchievementsPanel.Visibility == Visibility.Visible) await LoadAchievementsAsync();
+        if (BackupsPanel.Visibility == Visibility.Visible) await LoadBackupsAsync();
+    }
+
+    public void FocusDefault() => Tabs.Focus(MainWindow.FocusMode);
+
+    // ---- pickers (unpackaged apps must attach them to the window) --------------------------
 
     static nint Hwnd => WinRT.Interop.WindowNative.GetWindowHandle(App.Window!);
 

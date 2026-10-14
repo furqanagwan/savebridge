@@ -11,6 +11,7 @@ from pathlib import Path
 from .core import (Target, backup_owner, backup_target, backups, ensure_game_closed,
                    read_backup, resolve, scan, steam_candidates)
 from .games import GAMES, Game, Save, SaveError, get_game
+from .locate import locate_all
 from .platforms import LocalAccount, active_steam_user, long_path, xbox_accounts
 from .wgs import WgsError
 
@@ -286,6 +287,29 @@ def _pick_backup(game: Game, name: str | None):
     return hit[0]
 
 
+def cmd_locate(args) -> int:
+    games = [get_game(args.game)] if args.game else list(GAMES.values())
+    found = locate_all(games)
+    if args.json:
+        return _emit(found)
+    for g in found:
+        print(g['name'])
+        for store in ('steam', 'xbox'):
+            info = g[store]
+            label = 'Steam' if store == 'steam' else 'Xbox '
+            installed = info['install_dir'] if info['installed'] else 'not installed'
+            print(f'  {label} game:  {installed}')
+            for s in info['saves']:
+                count = (f"{s['containers']} save container(s)" if 'containers' in s
+                         else f"{s['files']} file(s)" if s['exists'] else 'no saves yet')
+                print(f"  {label} saves: {s['path']}  [{s['account']}; {count}]")
+                for x in s.get('extra', []):
+                    print(f"               + {x['kind']}: {x['path']}")
+            if info['error']:
+                print(f'  {label} saves: {info["error"]}')
+    return 0
+
+
 def cmd_backups(args) -> int:
     found = backups(get_game(args.game).id if args.game else None)
     if args.json:
@@ -390,6 +414,10 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument('--from', dest='source', required=True, choices=['steam', 'xbox'])
     p.add_argument('--out', required=True)
 
+    p = sub.add_parser('locate', parents=[as_json],
+                       help='show where each game is installed and where its saves are, on both stores')
+    p.add_argument('game', nargs='?')
+
     p = sub.add_parser('backups', parents=[as_json], help='list the backups made before each write')
     p.add_argument('game', nargs='?')
 
@@ -402,7 +430,7 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     handler = {'games': cmd_games, 'accounts': cmd_accounts, 'list': cmd_list,
                'convert': cmd_convert, 'import': cmd_import, 'export': cmd_export,
-               'backups': cmd_backups, 'restore': cmd_restore,
+               'backups': cmd_backups, 'locate': cmd_locate, 'restore': cmd_restore,
                'check': cmd_check, 'inspect': cmd_inspect}[args.cmd]
     try:
         return handler(args)

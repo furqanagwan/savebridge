@@ -103,6 +103,26 @@ Use `--game <id>` to restrict recognition. Inspection and prerequisite checks
 never change saves or persist recovered account keys. A successful check still
 requires the normal conversion preview to validate the incoming save selection.
 
+## Desktop app
+
+`app/SaveBridge` is a WinUI 3 app on top of the same converter (build with
+`dotnet build app/SaveBridge -p:Platform=x64`; it runs `python -m savebridge`
+from the repository, or a bundled `cli\savebridge.exe` in releases).
+
+- **Library** of every supported game with Steam cover art, descriptions and
+  release info (Steam's public store data, cached for a week), filters for
+  installed games, games with saves and verified games.
+- **Save locations** for each game: where it is installed and where each
+  account's saves are, on Steam and Xbox, with buttons to open the folder.
+  `python -m savebridge locate [game]` prints the same.
+- **Controller support**: the D-pad or left stick moves, A selects, B goes back
+  or closes a dialog, LB/RB switch sections, LT/RT page through lists, Y
+  refreshes, View searches, Menu opens settings, the right stick scrolls. A
+  button guide shows while a controller is connected (Xbox controllers
+  directly; others through Steam Input or similar).
+- Optional Xbox sign-in shows your achievements for a game and whether they are
+  title-managed or event-based.
+
 ## Development
 
 - [research.md](research.md): Xbox save internals and per-game formats.

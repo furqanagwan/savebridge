@@ -51,6 +51,24 @@ Variations seen:
 | `wgs` **plus** a copy in the install folder | CoD: Ghosts (`<drive>:\XboxGames\<game>\Content\players2\<decimal XUID>\`) | the game keeps its own mirror and prefers it |
 | plain files, no `wgs` | Destroy All Humans! (2020) | the Xbox build writes the same per-PC folder as Steam, so no cloud sync |
 
+### Finding where games are installed
+
+- **Steam**: `steamapps\libraryfolders.vdf` lists every library;
+  `steamapps\appmanifest_<app id>.acf` in one of them names the game's
+  `installdir` under `steamapps\common`.
+- **Xbox (GDK games)**: each drive with Xbox games has a hidden `.GamingRoot`
+  file: `RGBX`, a u32, then the games folder as UTF-16 (`XboxGames` by
+  default). Every game there has a readable `Content\appxmanifest.xml` whose
+  `<Identity Name="...">` is the package name, while the executables beside it
+  stay locked. These games are **not** listed in the per-user AppModel package
+  registry (`HKCU\Software\Classes\Local Settings\...\AppModel\Repository\Packages`,
+  `PackageRootFolder`), which only covers ordinary Store apps.
+- The `Packages\<package family name>` folder (and its saves) stays behind when a
+  game is uninstalled, so "has Xbox saves" and "is installed" are separate facts.
+- `<drive>:\XboxGames\GameSave\` also exists, with `wgs` and a `pgs` folder of
+  per-user sync manifests (`u_<XUID>_<title id>\<version>.json`: chunk GUIDs,
+  sizes, upload progress). None of the supported games uses it.
+
 ## 2. The WGS format
 
 **`containers.index`** (version 14): a header (version, entry count, a

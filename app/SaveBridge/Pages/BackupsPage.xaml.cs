@@ -1,67 +1,68 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using SaveBridge.Models;
 using SaveBridge.Services;
 
 namespace SaveBridge.Pages;
 
-public sealed partial class BackupsPage : Page
+public sealed record BackupRow(BackupInfo Backup, string Title, string Detail, Uri? Art);
+
+public sealed partial class BackupsPage : Page, IAppPage
 {
+    bool _focusPending;
+
     public BackupsPage()
     {
         InitializeComponent();
-        Loaded += async (_, _) => await LoadAsync();
+        Loaded += async (_, _) => await RefreshAsync();
+        // The list loads after the page appears: focus its first row once that row exists.
+        List.ContainerContentChanging += (_, args) =>
+        {
+            if (_focusPending && args.ItemIndex == 0 && !args.InRecycleQueue)
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, FocusDefault);
+        };
     }
 
-    async Task LoadAsync()
+    public async Task RefreshAsync()
     {
         try
         {
+            await Library.Instance.LoadAsync();
             var list = await Cli.JsonAsync<List<BackupInfo>>("backups");
-            List.ItemsSource = list;
-            Empty.Visibility = list.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+            List.ItemsSource = list.Select(b =>
+            {
+                var game = Library.Instance.Find(b.Game);
+                return new BackupRow(b, game?.Name ?? b.Game, $"{b.Where} saves · {b.When} · {b.SizeText}",
+                                     game?.Meta?.Header is { } h ? new Uri(h) : null);
+            }).ToList();
+            Empty.Visibility = Ui.Show(list.Count == 0);
         }
-        catch (Exception e)
-        {
-            Show(InfoBarSeverity.Error, "Couldn't list backups", e.Message);
-        }
+        catch (Exception e) { Show(InfoBarSeverity.Error, "Couldn't list backups", e.Message); }
     }
 
-    async void Restore_Click(object sender, RoutedEventArgs e)
+    async void Restore_Click(object sender, RoutedEventArgs e) => await RestoreAsync((BackupInfo)((Button)sender).Tag);
+
+    // A on a controller (or a click) on the row restores it too.
+    async void List_ItemClick(object sender, ItemClickEventArgs e) => await RestoreAsync(((BackupRow)e.ClickedItem).Backup);
+
+    async Task RestoreAsync(BackupInfo b)
     {
-        var b = (BackupInfo)((Button)sender).Tag;
-        var preview = await Cli.RunAsync("restore", b.Game, b.Name, "--dry-run");
-        if (!preview.Ok)
+        var name = Library.Instance.Find(b.Game)?.Name ?? b.Game;
+        var r = await Writes.PreviewAndRunAsync(XamlRoot, ["restore", b.Game, b.Name],
+                                                $"Restore {name} ({b.Where}) from {b.When}?", "Restore");
+        switch (r.Outcome)
         {
-            Show(InfoBarSeverity.Error, "Can't restore this backup", preview.Text.Split('\n').Last().Replace("error: ", ""));
-            return;
+            case WriteOutcome.Done:
+                Show(InfoBarSeverity.Success, "Restored", r.Summary + " Start the game online so an Xbox restore uploads.");
+                await Library.Instance.RefreshLocationAsync(b.Game);
+                break;
+            case WriteOutcome.Refused: Show(InfoBarSeverity.Error, "Can't restore this backup", r.Summary); break;
+            case WriteOutcome.Failed: Show(InfoBarSeverity.Error, "Restore failed", r.Summary); break;
         }
-        var dialog = new ContentDialog
-        {
-            XamlRoot = XamlRoot,
-            Title = $"Restore {b.Game} from {b.When}?",
-            PrimaryButtonText = "Restore",
-            CloseButtonText = "Cancel",
-            DefaultButton = ContentDialogButton.Close,
-            Content = new ScrollViewer
-            {
-                MaxHeight = 420,
-                Content = new TextBlock
-                {
-                    Text = preview.Output.Replace("Dry run: nothing written.", "").Trim()
-                           + "\n\nThe current saves are backed up first. Make sure the game is closed.",
-                    FontFamily = new FontFamily("Consolas"), FontSize = 12,
-                    TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true,
-                },
-            },
-        };
-        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
-        var run = await Cli.RunAsync("restore", b.Game, b.Name);
-        if (run.Ok) Show(InfoBarSeverity.Success, "Restored", "Start the game online so an Xbox restore uploads to the cloud.");
-        else Show(InfoBarSeverity.Error, "Restore failed", run.Text.Split('\n').Last().Replace("error: ", ""));
-        await LoadAsync();
+        await RefreshAsync();
     }
+
+    void OpenFolder_Click(object sender, RoutedEventArgs e) => Ui.OpenFolder(Path.Combine(AppSettings.Folder, "backups"));
 
     void Show(InfoBarSeverity severity, string title, string message)
     {
@@ -70,4 +71,7 @@ public sealed partial class BackupsPage : Page
         Result.Message = message;
         Result.IsOpen = true;
     }
+
+    public void FocusDefault() =>
+        _focusPending = List.ContainerFromIndex(0) is not ListViewItem first || !first.Focus(MainWindow.FocusMode);
 }

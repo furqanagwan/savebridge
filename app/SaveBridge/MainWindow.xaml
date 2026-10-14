@@ -5,27 +5,44 @@
   <Window.SystemBackdrop>
     <MicaBackdrop />
   </Window.SystemBackdrop>
-  <Grid>
+
+  <Grid x:Name="Root" PreviewKeyDown="Root_PreviewKeyDown" PointerPressed="Root_PointerPressed">
     <Grid.RowDefinitions>
-      <RowDefinition Height="48" />
+      <RowDefinition Height="Auto" />
       <RowDefinition Height="*" />
+      <RowDefinition Height="Auto" />
     </Grid.RowDefinitions>
 
-    <Grid x:Name="TitleBar" Padding="16,0,0,0">
-      <StackPanel Orientation="Horizontal" Spacing="12" VerticalAlignment="Center">
-        <FontIcon Glyph="&#xE8AB;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
-        <TextBlock Text="savebridge" Style="{StaticResource CaptionTextBlockStyle}" VerticalAlignment="Center" />
-        <TextBlock Text="Steam ⇄ Xbox saves" Style="{StaticResource CaptionTextBlockStyle}"
-                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
-      </StackPanel>
-    </Grid>
+    <TitleBar x:Name="AppTitleBar" Title="savebridge" Subtitle="Steam ⇄ Xbox saves"
+              IsBackButtonVisible="True" IsBackButtonEnabled="False" IsPaneToggleButtonVisible="True"
+              BackRequested="TitleBar_BackRequested" PaneToggleRequested="TitleBar_PaneToggleRequested">
+      <TitleBar.IconSource>
+        <ImageIconSource ImageSource="ms-appx:///Assets/savebridge.png" />
+      </TitleBar.IconSource>
+      <TitleBar.Content>
+        <AutoSuggestBox x:Name="Search" PlaceholderText="Search games" QueryIcon="Find" MinWidth="320" MaxWidth="520"
+                        TextChanged="Search_TextChanged" QuerySubmitted="Search_QuerySubmitted"
+                        SuggestionChosen="Search_SuggestionChosen" DisplayMemberPath="Name"
+                        AutomationProperties.Name="Search games" />
+      </TitleBar.Content>
+      <TitleBar.RightHeader>
+        <Button x:Name="ProfileButton" Click="ProfileButton_Click" Padding="2" Margin="0,0,8,0"
+                Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="Xbox profile"
+                AutomationProperties.Name="Xbox profile">
+          <PersonPicture x:Name="Avatar" Width="28" Height="28" />
+        </Button>
+      </TitleBar.RightHeader>
+    </TitleBar>
 
-    <NavigationView x:Name="Nav" Grid.Row="1" IsBackButtonVisible="Auto" IsSettingsVisible="False"
-                    PaneDisplayMode="Left" OpenPaneLength="220"
-                    SelectionChanged="Nav_SelectionChanged" BackRequested="Nav_BackRequested">
+    <NavigationView x:Name="Nav" Grid.Row="1" IsBackButtonVisible="Collapsed" IsPaneToggleButtonVisible="False"
+                    IsSettingsVisible="True" PaneDisplayMode="Left" OpenPaneLength="240"
+                    SelectionChanged="Nav_SelectionChanged" XYFocusKeyboardNavigation="Enabled">
       <NavigationView.MenuItems>
-        <NavigationViewItem Content="Games" Tag="games" IsSelected="True">
+        <NavigationViewItem Content="Library" Tag="library" IsSelected="True">
           <NavigationViewItem.Icon><FontIcon Glyph="&#xE7FC;" /></NavigationViewItem.Icon>
+          <NavigationViewItem.InfoBadge>
+            <InfoBadge x:Name="LibraryCount" Visibility="Collapsed" />
+          </NavigationViewItem.InfoBadge>
         </NavigationViewItem>
         <NavigationViewItem Content="Backups" Tag="backups">
           <NavigationViewItem.Icon><FontIcon Glyph="&#xE81C;" /></NavigationViewItem.Icon>
@@ -41,5 +58,40 @@
       </NavigationView.FooterMenuItems>
       <Frame x:Name="ContentFrame" Navigated="ContentFrame_Navigated" />
     </NavigationView>
+
+    <!-- Controller button guide, shown while a controller is connected -->
+    <Grid x:Name="HintBar" Grid.Row="2" Visibility="Collapsed" Padding="24,8"
+          Background="{ThemeResource LayerOnMicaBaseAltFillColorDefaultBrush}"
+          BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,1,0,0">
+      <StackPanel Orientation="Horizontal" Spacing="24" HorizontalAlignment="Right">
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border Style="{StaticResource PadButtonStyle}" Background="#107C10">
+            <TextBlock Text="A" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBlock Text="Select" VerticalAlignment="Center" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border Style="{StaticResource PadButtonStyle}" Background="#E81123">
+            <TextBlock Text="B" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBlock Text="Back" VerticalAlignment="Center" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border Style="{StaticResource PadButtonStyle}" Background="#FFB900">
+            <TextBlock Text="Y" Foreground="Black" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+          </Border>
+          <TextBlock Text="Refresh" VerticalAlignment="Center" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border Style="{StaticResource PadBumperStyle}"><TextBlock Text="LB" FontSize="12" VerticalAlignment="Center" /></Border>
+          <Border Style="{StaticResource PadBumperStyle}"><TextBlock Text="RB" FontSize="12" VerticalAlignment="Center" /></Border>
+          <TextBlock Text="Switch section" VerticalAlignment="Center" />
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="8">
+          <Border Style="{StaticResource PadBumperStyle}"><FontIcon Glyph="&#xE8A9;" FontSize="12" /></Border>
+          <TextBlock Text="Search" VerticalAlignment="Center" />
+        </StackPanel>
+      </StackPanel>
+    </Grid>
   </Grid>
 </Window>

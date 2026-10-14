@@ -5,7 +5,7 @@ using SaveBridge.Services;
 
 namespace SaveBridge.Pages;
 
-public sealed partial class ProfilePage : Page
+public sealed partial class ProfilePage : Page, IAppPage
 {
     static readonly XboxLive Xbl = XboxLive.Instance;
     List<XboxTitle> _titles = [];
@@ -13,14 +13,14 @@ public sealed partial class ProfilePage : Page
     public ProfilePage()
     {
         InitializeComponent();
-        Loaded += async (_, _) => await RefreshAsync();
+        Loaded += async (_, _) => await ShowAsync();
         Xbl.Changed += OnChanged;
         Unloaded += (_, _) => Xbl.Changed -= OnChanged;
     }
 
-    void OnChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(async () => await RefreshAsync());
+    void OnChanged(object? sender, EventArgs e) => DispatcherQueue.TryEnqueue(async () => await ShowAsync());
 
-    async Task RefreshAsync()
+    async Task ShowAsync()
     {
         var p = Xbl.Profile;
         var signedIn = Xbl.SignedIn && p != null;
@@ -102,5 +102,18 @@ public sealed partial class ProfilePage : Page
         Error.Title = "Xbox sign-in";
         Error.Message = message;
         Error.IsOpen = true;
+    }
+
+    public Task RefreshAsync()
+    {
+        _titles = [];
+        return ShowAsync();
+    }
+
+    public void FocusDefault()
+    {
+        if (XboxLive.Instance.SignedIn && Titles.ContainerFromIndex(0) is ListViewItem first) first.Focus(MainWindow.FocusMode);
+        else if (SignIn.Visibility == Visibility.Visible) SignIn.Focus(MainWindow.FocusMode);
+        else SignOut.Focus(MainWindow.FocusMode);
     }
 }
