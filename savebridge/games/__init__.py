@@ -18,15 +18,18 @@ from .mouse_pi import MousePi
 from .re_engine import Onimusha
 from .samson import Samson
 from .silent_hill_2 import SilentHill2
+from .witcher3 import Witcher3
 
 GAMES: dict[str, Game] = {g.id: g for g in (MgsDelta(), DestroyAllHumans(), ControlResonant(),
                                              Samson(), Dawnwalker(), BlackOps2(), Ghosts(), Kcd2(),
                                              CrimsonDesert(), SilentHill2(), Ff7Remake(),
                                              Ff7Rebirth(), MousePi(), Dispatch(),
                                              BeastOfReincarnation(), Cuphead(), Onimusha(),
-                                             HaloCampaignEvolved())}
+                                             HaloCampaignEvolved(), Witcher3())}
 
 ALIASES = {
+    'w3': 'witcher3',
+    'witcher': 'witcher3',
     'mgs3': 'mgs-delta',
     'mgsdelta': 'mgs-delta',
     'snake-eater': 'mgs-delta',

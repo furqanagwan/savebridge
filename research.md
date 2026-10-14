@@ -445,6 +445,37 @@ Steam: `Steam\userdata\<account id>\2638890\remote\win64_save\data<X>.bin`;
 Xbox: container and blob `SaveData<X>` (e.g. `SaveData001Slot`). DSSS
 encrypted (section 10), seed `0xA235A0818E21A7A6`, ID variant 1.
 
+### The Witcher 3: Wild Hunt (next-gen)
+
+| | Steam | Xbox |
+|---|---|---|
+| Location | `Documents\The Witcher 3\gamesaves\<Name>.sav` + `.png` (per PC) | container `<Name>`, blobs `sav`, `scr`, `meta`, `con` |
+| Names | `ManualSave_`/`QuickSave_`/`AutoSave_`/`CheckPoint_` + three hex numbers | same |
+| Other | — | containers `input` and `settings`, left alone |
+
+The `.sav` is the same on both stores: `SNFHFZLC`, a chunk count, the data
+offset (`0xC0C`), a table of (compressed size, decompressed size, end offset),
+then LZ4 blocks of up to 1 MiB. Steam fills in every end offset; the Xbox build
+leaves the **last** one 0. A multi-chunk save with all end offsets zeroed is
+reported as damaged, because the loader finds each chunk from the previous
+chunk's end. Inside is the `SAV3` body: save version (66), game version (29),
+then `BS`/`VL` variable records whose names (1-based indices) live in a `MANU`
+string table near the end.
+
+Xbox adds two blobs:
+
+- `meta`: NUL-terminated JSON with the initial and current build IDs,
+  `gameVersion`, `saveVersion` and mods. savebridge copies it from one of the
+  account's own saves (so it names the installed build) and sets the versions
+  from the save's `SAV3` header.
+- `con`: the install chunks the save needs, `content0\0content1\0…`: the
+  `contentN` entries set to 1 in the save's `ContentTaintedFlags`. A prologue
+  save needs `content0`–`content2`; a late-game save with both expansions
+  needs `content0`–`content12`.
+
+No account ID. Re-encoding the account's own Xbox saves reproduces all four
+blobs byte for byte.
+
 ## 13. Hard cases
 
 ### Halo: Campaign Evolved (Steam → Xbox verified in game)
