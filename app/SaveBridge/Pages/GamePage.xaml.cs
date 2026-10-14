@@ -17,12 +17,16 @@ public sealed partial class GamePage : Page, IAppPage
     bool _loadingAccounts, _writing, _achievementsLoaded;
     int _readinessVersion;
     ReadinessReport? _xboxReadiness, _steamReadiness;
+    string? _startTab;
 
     public GamePage() => InitializeComponent();
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
-        var id = e.Parameter as string ?? "";
+        // "id" or "id#tab" (e.g. from the Community page).
+        var parts = (e.Parameter as string ?? "").Split('#', 2);
+        var id = parts[0];
+        _startTab = parts.Length > 1 ? parts[1] : null;
         await Library.Instance.LoadAsync();
         _game = Library.Instance.Find(id) ?? new LibraryGame(new GameInfo { Id = id, Name = id });
         _game.PropertyChanged += (_, _) => DispatcherQueue.TryEnqueue(ShowHeader);
@@ -31,6 +35,8 @@ public sealed partial class GamePage : Page, IAppPage
         Note.Title = "Known limits";
         Note.Message = _game.Info.Note;
         Note.IsOpen = !string.IsNullOrEmpty(_game.Info.Note);
+        if (_startTab != null)
+            Tabs.SelectedItem = Tabs.Items.FirstOrDefault(i => (string)i.Tag == _startTab) ?? Tabs.SelectedItem;
         await LoadAccountsAsync();
         await LoadSavesAsync();
     }
@@ -107,11 +113,13 @@ public sealed partial class GamePage : Page, IAppPage
     {
         var tag = sender.SelectedItem?.Tag as string;
         SavesPanel.Visibility = Ui.Show(tag == "saves");
+        CommunityPanel.Visibility = Ui.Show(tag == "community");
         LocationsPanel.Visibility = Ui.Show(tag == "locations");
         AchievementsPanel.Visibility = Ui.Show(tag == "achievements");
         BackupsPanel.Visibility = Ui.Show(tag == "backups");
         if (tag == "achievements" && !_achievementsLoaded) await LoadAchievementsAsync();
         if (tag == "backups") await LoadBackupsAsync();
+        if (tag == "community") await LoadCommunityAsync();
     }
 
     // ---- accounts and saves -------------------------------------------------------------
@@ -271,6 +279,50 @@ public sealed partial class GamePage : Page, IAppPage
         await LoadBackupsAsync();
     }
 
+    // ---- community saves ----------------------------------------------------------------
+
+    async Task LoadCommunityAsync()
+    {
+        CommunityBusy.IsActive = true;
+        CommunityEmpty.Visibility = Visibility.Collapsed;
+        try
+        {
+            var list = await Cli.JsonAsync<List<CommunitySave>>("community", "list", _game.Id);
+            CommunityList.ItemsSource = list;
+            CommunityEmpty.Text = $"Nobody has shared a {_game.Name} save yet. Yours could be the first.";
+            CommunityEmpty.Visibility = Ui.Show(list.Count == 0);
+        }
+        catch (Exception e)
+        {
+            CommunityEmpty.Text = "Couldn't load community saves: " + e.Message;
+            CommunityEmpty.Visibility = Visibility.Visible;
+        }
+        finally { CommunityBusy.IsActive = false; }
+    }
+
+    async void CommunityToXbox_Click(object sender, RoutedEventArgs e) =>
+        await ImportCommunityAsync((string)((Button)sender).Tag, "xbox");
+
+    async void CommunityToSteam_Click(object sender, RoutedEventArgs e) =>
+        await ImportCommunityAsync((string)((Button)sender).Tag, "steam");
+
+    async Task ImportCommunityAsync(string id, string to)
+    {
+        Result.IsOpen = false;
+        SetBusy(true);
+        string path;
+        try { path = (await Cli.JsonAsync<DownloadResult>("community", "get", id)).Path; }
+        catch (Exception e)
+        {
+            Show(InfoBarSeverity.Error, "Couldn't download the save", e.Message);
+            SetBusy(false);
+            return;
+        }
+        SetBusy(false);
+        await CheckedWriteAsync(["import", _game.Id, path, "--to", to, .. AccountArgs()], to, null,
+                                $"Import this community save into {(to == "xbox" ? "Xbox" : "Steam")}?");
+    }
+
     // ---- writing --------------------------------------------------------------------------
 
     List<string> Selection() => Saves.SelectedItems.OfType<SaveRow>().Select(r => r.Key).ToList();
@@ -414,6 +466,7 @@ public sealed partial class GamePage : Page, IAppPage
         await LoadSavesAsync();
         if (AchievementsPanel.Visibility == Visibility.Visible) await LoadAchievementsAsync();
         if (BackupsPanel.Visibility == Visibility.Visible) await LoadBackupsAsync();
+        if (CommunityPanel.Visibility == Visibility.Visible) await LoadCommunityAsync();
     }
 
     public void FocusDefault() => Tabs.Focus(MainWindow.FocusMode);

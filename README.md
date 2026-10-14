@@ -103,6 +103,37 @@ Use `--game <id>` to restrict recognition. Inspection and prerequisite checks
 never change saves or persist recovered account keys. A successful check still
 requires the normal conversion preview to validate the incoming save selection.
 
+## Community saves
+
+Players share saves in [`saves/`](saves/README.md), sorted by game and by the
+platform the save came from. Each save lists its author, the game version it was
+made on and where it has been tested to load. Because saves are stored in
+savebridge's platform-neutral form, one save works on Steam or Xbox PC
+whichever platform it came from.
+
+```powershell
+python -m savebridge community list witcher3
+python -m savebridge community get witcher3/steam/<save>
+python -m savebridge import witcher3 "<downloaded save.zip>" --to xbox
+python -m savebridge submit witcher3 --from steam --title "..." --author you --platform steam --game-version 4.04
+```
+
+Submissions are pull requests; every one is checked automatically (format,
+hashes, size, personal data). See [saves/README.md](saves/README.md).
+
+## Console saves
+
+- **Xbox Series X|S / Xbox One**: games that share cloud saves with their PC
+  version sync console progress into the Xbox PC save folder. Start the PC
+  version once online, then use the save like any Xbox PC save (submit it with
+  `--platform xbox-series`).
+- **PlayStation 3, 4 and 5**: saves are encrypted on the console. savebridge
+  recognises *decrypted* exports (Apollo Save Tool on a jailbroken console, or
+  Save Wizard), names the game from `PARAM.SFO`, and converts them for games
+  whose console layout has been tested. No game has a tested PlayStation layout
+  yet: each one needs a real save to test against, so please open an issue if
+  you have one.
+
 ## Desktop app
 
 `app/SaveBridge` is a WinUI 3 app on top of the same converter (build with

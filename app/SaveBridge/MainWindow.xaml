@@ -44,6 +44,9 @@
             <InfoBadge x:Name="LibraryCount" Visibility="Collapsed" />
           </NavigationViewItem.InfoBadge>
         </NavigationViewItem>
+        <NavigationViewItem Content="Community saves" Tag="community">
+          <NavigationViewItem.Icon><FontIcon Glyph="&#xE716;" /></NavigationViewItem.Icon>
+        </NavigationViewItem>
         <NavigationViewItem Content="Backups" Tag="backups">
           <NavigationViewItem.Icon><FontIcon Glyph="&#xE81C;" /></NavigationViewItem.Icon>
         </NavigationViewItem>

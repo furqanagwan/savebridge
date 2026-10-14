@@ -17,6 +17,7 @@ public sealed partial class MainWindow : Window
     static readonly (string Tag, Type Page)[] Sections =
     [
         ("library", typeof(LibraryPage)),
+        ("community", typeof(CommunityPage)),
         ("backups", typeof(BackupsPage)),
         ("profile", typeof(ProfilePage)),
         ("settings", typeof(SettingsPage)),

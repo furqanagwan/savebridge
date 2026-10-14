@@ -79,7 +79,7 @@ public static class Cli
     public static async Task<T> JsonAsync<T>(params string[] args)
     {
         var r = await RunAsync(args.Append("--json"));
-        if (!r.Ok) throw new InvalidOperationException(r.Text);
+        if (!r.Ok) throw new InvalidOperationException(r.Text.Replace("error: ", ""));
         return JsonSerializer.Deserialize<T>(r.Output, Json)
                ?? throw new InvalidOperationException("The converter returned no data.");
     }

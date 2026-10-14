@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import zipfile
 from pathlib import Path
 
+from . import community, package
 from .core import (Target, backup_owner, backup_target, backups, ensure_game_closed,
                    read_backup, resolve, scan, steam_candidates)
 from .games import GAMES, Game, Save, SaveError, get_game
@@ -310,6 +312,85 @@ def cmd_locate(args) -> int:
     return 0
 
 
+def _library(args) -> Path:
+    if getattr(args, 'library', None):
+        return Path(args.library)
+    lib = community.repo_library()
+    if lib is None:
+        raise SaveError('no saves/ folder here; run this in a clone of the savebridge repository '
+                        'or pass --library')
+    return lib
+
+
+def cmd_submit(args) -> int:
+    game = get_game(args.game)
+    if args.paths:
+        r = scan(game, [long_path(Path(p)) for p in args.paths])
+    elif args.source:
+        r = resolve(game, args.source, args.steam_account, args.xbox_account).read()
+    else:
+        raise SaveError('give the save files, or --from steam|xbox for your own saves')
+    for w in r.warnings:
+        print(f'warning: {w}')
+    saves = _select(game, r.saves, args)
+    meta = {'title': args.title, 'author': args.author, 'platform': args.platform,
+            'game_version': args.game_version, 'description': args.description or '',
+            'tested': [{'platform': t, 'by': args.author, 'game_version': args.game_version}
+                       for t in args.tested_on or []]}
+    folder = community.submit(game, saves, meta, _library(args), args.allow_personal_data)
+    print(f'Packaged {len(saves)} save(s) for {game.name}:')
+    for w in community.possible_binary_ids(saves):
+        print(f'  note: {w}')
+    for s in saves:
+        print(f'  {s.key:<20} {game.describe(s)}')
+    print(f'\n  {folder}\n\nCommit this folder and open a pull request; the checks run automatically.')
+    return 0
+
+
+def cmd_community(args) -> int:
+    if args.action == 'check':
+        lib = _library(args)
+        results = community.check(lib)
+        bad = {k: v for k, v in results.items() if v}
+        for k, v in results.items():
+            print(f'{"FAIL" if v else "ok  "}  {k}')
+            for problem in v:
+                print(f'        {problem}')
+            for note in community.folder_warnings(lib / k):
+                print(f'        note: {note}')
+        print(f'\n{len(results)} save(s) checked, {len(bad)} with problems.')
+        return 1 if bad else 0
+    if args.action == 'index':
+        print(f'wrote {community.write_index(_library(args))}')
+        return 0
+    if args.action == 'get':
+        if not args.id:
+            raise SaveError('community get needs a save id (see: savebridge community list)')
+        out = Path(args.out) if args.out else Path(os.environ.get('LOCALAPPDATA', Path.home())) / 'savebridge' / 'community'
+        path = community.download(args.id, out, community.repo_library() if args.local else None)
+        if args.json:
+            return _emit({'path': str(path)})
+        game = args.id.split('/')[0]
+        print(f'{path}\nImport it with: savebridge import {game} "{path}" --to steam|xbox')
+        return 0
+    lib = community.repo_library() if args.local else None
+    entries = community.load_index(lib)
+    if args.id:
+        entries = [e for e in entries if e['game'] == get_game(args.id).id]
+    if args.platform:
+        entries = [e for e in entries if e['platform'] == args.platform]
+    if args.json:
+        return _emit(entries)
+    if not entries:
+        print('No community saves yet.')
+    for e in entries:
+        tested = ', '.join(sorted({t['platform'] for t in e['tested']})) or 'not yet'
+        print(f"{e['game_name']}: {e['title']}  by {e['author']}")
+        print(f"  from {e['platform_name']}, game version {e['game_version']}, tested on: {tested}")
+        print(f"  savebridge community get {e['id']}")
+    return 0
+
+
 def cmd_backups(args) -> int:
     found = backups(get_game(args.game).id if args.game else None)
     if args.json:
@@ -418,6 +499,31 @@ def main(argv: list[str] | None = None) -> int:
                        help='show where each game is installed and where its saves are, on both stores')
     p.add_argument('game', nargs='?')
 
+    p = sub.add_parser('submit', parents=[accounts, choose],
+                       help='package a save for the community library (saves/ in this repository)')
+    p.add_argument('game')
+    p.add_argument('paths', nargs='*', help='save files, folders or zips (or use --from)')
+    p.add_argument('--from', dest='source', choices=['steam', 'xbox'], help="package this PC's own saves")
+    p.add_argument('--title', required=True, help='short description, e.g. "100%%, before the final boss"')
+    p.add_argument('--author', required=True, help='your name or GitHub username, shown with the save')
+    p.add_argument('--platform', required=True, choices=list(package.PLATFORMS),
+                   help='where the save came from')
+    p.add_argument('--game-version', required=True, help='the game version the save was made on')
+    p.add_argument('--description', help='what is unlocked, what is left to do, achievements left')
+    p.add_argument('--tested-on', action='append', choices=list(package.PLATFORMS),
+                   help='platforms you loaded it on (repeatable)')
+    p.add_argument('--library', help='saves/ folder (default: the one in this repository)')
+    p.add_argument('--allow-personal-data', action='store_true',
+                   help='package even if the privacy scan finds something (not recommended)')
+
+    p = sub.add_parser('community', parents=[as_json], help='browse and download community saves')
+    p.add_argument('action', choices=['list', 'get', 'check', 'index'])
+    p.add_argument('id', nargs='?', help='list: a game; get: a save id from the list')
+    p.add_argument('--platform', choices=list(package.PLATFORMS), help='list: only saves from this platform')
+    p.add_argument('--out', help='get: where to download (default %%LOCALAPPDATA%%\\savebridge\\community)')
+    p.add_argument('--local', action='store_true', help='use the saves/ folder of this clone, not GitHub')
+    p.add_argument('--library', help='check/index: saves/ folder (default: the one in this repository)')
+
     p = sub.add_parser('backups', parents=[as_json], help='list the backups made before each write')
     p.add_argument('game', nargs='?')
 
@@ -430,7 +536,8 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
     handler = {'games': cmd_games, 'accounts': cmd_accounts, 'list': cmd_list,
                'convert': cmd_convert, 'import': cmd_import, 'export': cmd_export,
-               'backups': cmd_backups, 'locate': cmd_locate, 'restore': cmd_restore,
+               'backups': cmd_backups, 'locate': cmd_locate,
+               'submit': cmd_submit, 'community': cmd_community, 'restore': cmd_restore,
                'check': cmd_check, 'inspect': cmd_inspect}[args.cmd]
     try:
         return handler(args)

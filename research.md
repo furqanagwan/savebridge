@@ -291,6 +291,30 @@ DSSS encryption.
   version is 3 or more, and from UE 5.4 each property tag also carries a
   type-parameter count and a flags byte.
 
+### Console saves
+
+- **Xbox consoles** keep saves in the same Xbox cloud store as the Xbox PC
+  app. A game whose console and PC versions share a service configuration ID
+  (Play Anywhere and many GDK titles) shows console progress in the PC `wgs`
+  folder once the PC version has synced, so no console format is involved.
+- **PlayStation 3**: a save folder holds `PARAM.SFO` (metadata), `PARAM.PFD`
+  (per-file keys and hashes) and the game's files, encrypted with AES using a
+  per-game secure file ID. Decrypting needs that ID (the Apollo tools keep a
+  database of them); the open-source implementations are GPL, so savebridge
+  would need its own from the format documentation.
+- **PlayStation 4 / 5**: saves are mounted from encrypted images whose keys
+  never leave the console. Only exports already decrypted on a jailbroken
+  console (Apollo) or by Save Wizard are usable on a PC: a folder with
+  `sce_sys/param.sfo` beside the game's files. Writing back to a console needs
+  the same tools.
+- `PARAM.SFO` (`\0PSF`, a key table and a data table) is common to all three.
+  `TITLE_ID` names the game (`BLES/BLUS…` PS3, `CUSA…` PS4, `PPSA…` PS5);
+  `ACCOUNT_ID` (PS4/PS5) and `PARAMS` (PS3) identify the owner, so they are
+  never copied into a community package.
+- Console and PC versions of the same game often differ in their save
+  layout, so every console source is mapped per game and only after testing
+  with real saves (`Game.from_console`).
+
 ## 12. Per-game reference
 
 ### METAL GEAR SOLID Δ: SNAKE EATER

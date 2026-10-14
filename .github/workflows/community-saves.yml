@@ -1,0 +1,43 @@
+name: Community saves
+
+on:
+  pull_request:
+    paths: ['saves/**']
+  push:
+    branches: [main]
+    paths: ['saves/**']
+
+jobs:
+  check:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check every save (format, hashes, size, personal data)
+        run: python -m savebridge community check
+
+  index:
+    # Rebuild saves/index.json after a submission is merged; the app reads it.
+    if: github.event_name == 'push'
+    needs: check
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Rebuild the index
+        run: python -m savebridge community index
+      - name: Commit it if it changed
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add saves/index.json
+          git diff --cached --quiet || { git commit -m "Update the community save index"; git push; }

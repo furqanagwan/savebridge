@@ -45,6 +45,9 @@
           <SelectorBarItem Text="Saves" Tag="saves" IsSelected="True">
             <SelectorBarItem.Icon><FontIcon Glyph="&#xE8F1;" /></SelectorBarItem.Icon>
           </SelectorBarItem>
+          <SelectorBarItem Text="Community saves" Tag="community">
+            <SelectorBarItem.Icon><FontIcon Glyph="&#xE716;" /></SelectorBarItem.Icon>
+          </SelectorBarItem>
           <SelectorBarItem Text="Save locations" Tag="locations">
             <SelectorBarItem.Icon><FontIcon Glyph="&#xE8B7;" /></SelectorBarItem.Icon>
           </SelectorBarItem>
@@ -159,6 +162,65 @@
           <Expander Header="Details" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
             <TextBlock x:Name="Log" FontFamily="Cascadia Mono, Consolas" FontSize="12" IsTextSelectionEnabled="True" TextWrapping="Wrap" />
           </Expander>
+        </StackPanel>
+
+        <!-- ===== Community saves ===== -->
+        <StackPanel x:Name="CommunityPanel" Visibility="Collapsed" Spacing="12">
+          <Grid ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="*" />
+              <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock TextWrapping="Wrap" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Text="Saves shared by other players. Importing one previews the change and backs up your own saves first; where the game allows it, the save is added next to yours." />
+            <HyperlinkButton Grid.Column="1" Content="How to share yours"
+                             NavigateUri="https://github.com/furqanagwan/savebridge/blob/main/saves/README.md" />
+          </Grid>
+          <ProgressRing x:Name="CommunityBusy" Width="24" Height="24" HorizontalAlignment="Left" />
+          <TextBlock x:Name="CommunityEmpty" Visibility="Collapsed" TextWrapping="Wrap" />
+          <ItemsControl x:Name="CommunityList" IsTabStop="False">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="m:CommunitySave">
+                <Grid Padding="20,16" Margin="0,4" ColumnSpacing="16" RowSpacing="6" CornerRadius="8"
+                      Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                      BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                  <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                  </Grid.ColumnDefinitions>
+                  <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                  </Grid.RowDefinitions>
+                  <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Border Background="{ThemeResource ControlStrongFillColorDefaultBrush}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                      <TextBlock Text="{x:Bind PlatformShort}" FontSize="11" FontWeight="SemiBold" />
+                    </Border>
+                    <TextBlock Text="{x:Bind Title}" Style="{StaticResource BodyStrongTextBlockStyle}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                  </StackPanel>
+                  <TextBlock Grid.Row="1" Text="{x:Bind Byline}" Style="{StaticResource CaptionTextBlockStyle}"
+                             Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                  <TextBlock Grid.Row="2" Text="{x:Bind Notes}" TextWrapping="Wrap" Visibility="{x:Bind s:Ui.ShowText(Notes)}" />
+                  <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                      <FontIcon Glyph="&#xE73E;" FontSize="12" Visibility="{x:Bind s:Ui.Show(IsTested)}"
+                                Foreground="{ThemeResource SystemFillColorSuccessBrush}" />
+                      <TextBlock Text="{x:Bind TestedText}" Style="{StaticResource CaptionTextBlockStyle}" />
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind SizeText}" Style="{StaticResource CaptionTextBlockStyle}"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                  </StackPanel>
+                  <StackPanel Grid.Column="1" Grid.RowSpan="4" Spacing="8" VerticalAlignment="Center">
+                    <Button Content="Import into Xbox" Tag="{x:Bind Id}" Click="CommunityToXbox_Click"
+                            Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Stretch" />
+                    <Button Content="Import into Steam" Tag="{x:Bind Id}" Click="CommunityToSteam_Click" HorizontalAlignment="Stretch" />
+                  </StackPanel>
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
         </StackPanel>
 
         <!-- ===== Save locations ===== -->

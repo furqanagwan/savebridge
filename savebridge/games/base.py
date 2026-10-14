@@ -182,6 +182,17 @@ class Game(ABC):
         """Move a save to a different logical slot."""
         raise SaveError(f'{self.name} does not support moving saves between slots')
 
+    # ---- console saves (decrypted PlayStation exports, see savebridge/consoles.py) ----
+
+    def from_console(self, save) -> list[Save]:
+        """Platform-neutral saves from a decrypted console save (a consoles.ConsoleSave).
+
+        Only implemented once a real console save has been tested for the game.
+        """
+        raise SaveError(f'{save.label()} found, but savebridge does not convert {self.name} saves '
+                        f'from {save.platform_name} yet. Each console layout needs a real save to '
+                        f'test against: open an issue to help add it.')
+
     def rebind(self, save: Save, target: Account) -> Save:
         """Rewrite any account ID stored inside a save. Default: nothing to do."""
         return save

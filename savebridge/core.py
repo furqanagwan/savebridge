@@ -274,6 +274,24 @@ def scan(game: Game, paths: list[Path], strict: bool = True) -> ReadResult:
     Refuses input holding saves from more than one folder: a download often
     bundles several save sets, and mixing their files would corrupt the save.
     """
+    from . import package
+    packages = [p for p in paths if p.exists() and package.is_package(p)]
+    if packages:
+        # A savebridge package already holds the platform-neutral saves.
+        if len(paths) > 1:
+            raise SaveError('import one savebridge package at a time')
+        return package.saves_of(game, packages[0])[1]
+    from .consoles import find as find_console_saves
+    console = find_console_saves([p for p in paths if p.is_dir()])
+    if console:
+        # A decrypted PlayStation save: the game maps the console's files itself.
+        if len(console) > 1:
+            listing = '\n  '.join(c.label() for c in console)
+            raise SaveError(f'found {len(console)} console saves; import one at a time:\n  {listing}')
+        r = ReadResult()
+        for s in game.from_console(console[0]):
+            r.saves[s.key] = s
+        return r
     found, warnings, groups = [], [], {}
     for group, name, data in _iter_files(paths):
         try:
