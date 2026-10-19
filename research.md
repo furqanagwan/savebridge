@@ -487,6 +487,35 @@ Steam: `Steam\userdata\<account id>\2638890\remote\win64_save\data<X>.bin`;
 Xbox: container and blob `SaveData<X>` (e.g. `SaveData001Slot`). DSSS
 encrypted (section 10), seed `0xA235A0818E21A7A6`, ID variant 1.
 
+### KINGDOM HEARTS -HD 1.5+2.5 ReMIX-
+
+Each game keeps every save in one archive of PS2-style entries (64-byte name
+such as `BISLPS-25198-01` or `BISLPM-66675FM-SYS`, created/modified Unix times,
+length; 0x158 bytes each) followed by fixed-size slots:
+
+| Game | Entries | Slot | Steam / Epic file | Xbox container (one blob, same name) |
+|---|---|---|---|---|
+| KH Final Mix | 200 | 0x16C40 | `KHFM_WW.png` | `KH1SaveData/SAVE0.DAT` |
+| Re:Chain of Memories | 100 | 0x3A30 | `KHReCoM_WW.png` | `ReCOMSaveData/SAVE0.DAT` |
+| KH II Final Mix | 100 | 0x10FC0 | `KHIIFM_WW.png` | `KH2SaveData/SAVE0.DAT` |
+
+- **Steam / Epic**: a real PNG whose `sqEX` chunk holds 16 constant bytes, then
+  the entry table with its first 0xF0 bytes XORed with a 16-byte key stored in
+  entry 0's zero padding at 0xE0, then the slots. The Steam build also XORs
+  entry 0's first 18 name bytes and its dates (0x40-0x4C) with a second fixed
+  key and leaves its length 0; the slot data itself is untouched.
+- **Xbox**: the plain archive (16 bytes longer, no constant header) behind the
+  MD5 of everything after the first 16 bytes. KH Final Mix's archive is
+  zlib-compressed (u32 compressed size at 16, the stream at 32) and the blob is
+  padded to 16 MiB.
+- The launcher keeps its own save (`MareSaveData/SAVE0.DAT`, Steam
+  `KH1.5+2.5_system_WW.png`) and `config1525.dat`; savebridge leaves both alone.
+
+Re-encoding the Xbox version's own saves reproduces the Re:CoM and KH II blobs
+byte for byte (KH Final Mix after recompression: the same archive). Steam
+layout as read by [Xeeynamo/KingdomSaveEditor](https://github.com/Xeeynamo/KingdomSaveEditor);
+the Steam entry-0 key was worked out from the files.
+
 ### KINGDOM HEARTS III + Re Mind
 
 | | Steam / Epic | Xbox |

@@ -51,6 +51,13 @@ and key derivation as documented in the README of
 key table and mask, and the published test vector were used to write an
 independent implementation.
 
+## KINGDOM HEARTS HD 1.5+2.5 save format
+
+`savebridge/games/kh1525.py` reads the PC save archives (entry layout, counts,
+slot sizes and the XORed table head) as described by the reader in
+[Xeeynamo/KingdomSaveEditor](https://github.com/Xeeynamo/KingdomSaveEditor)
+(GPL-3.0). No code from that project is included.
+
 ## XboxAuthNet
 
 The app (`app/`) signs in to Xbox Live with [XboxAuthNet](https://github.com/AlphaBs/XboxAuthNet)
