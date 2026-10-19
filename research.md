@@ -143,7 +143,7 @@ When several saves share a container, writing one must keep the other blobs
 | **None**: identical bytes | 13 of 17 games |
 | Compression | FF7 Remake (Xbox: `bilz` header + zlib; Steam: raw), FF7 Rebirth (Xbox: bare zlib) |
 | Checksum trailer version | METAL GEAR SOLID Δ (CityHash64 trailer, obfuscated differently: Steam v2, Xbox v1) |
-| Encrypted per account | Capcom RE Engine (DSSS, section 10) |
+| Encrypted per account | Capcom RE Engine (DSSS, section 10), KINGDOM HEARTS III on Steam |
 | Different encryption key | Resonance: A Plague Tale Legacy (section 13) |
 
 Encryption that is **not** tied to the account copies byte for byte:
@@ -486,6 +486,35 @@ Unity. Steam: `%USERPROFILE%\AppData\LocalLow\Fumi Games\MOUSE\Save\` and
 Steam: `Steam\userdata\<account id>\2638890\remote\win64_save\data<X>.bin`;
 Xbox: container and blob `SaveData<X>` (e.g. `SaveData001Slot`). DSSS
 encrypted (section 10), seed `0xA235A0818E21A7A6`, ID variant 1.
+
+### KINGDOM HEARTS III + Re Mind
+
+| | Steam / Epic | Xbox |
+|---|---|---|
+| Location | `Documents\My Games\KINGDOM HEARTS III\Steam\<SteamID64>\SaveGames\kh3sv2\data\` (Epic: `Documents\KINGDOM HEARTS III\Epic Games Store\1638\...`) | container `kh3sv2/data`: blobs `slot<N>.bin`, `system.bin`, a 1-byte `_ph_` placeholder; `kh3setting/data` holds `GameSettings.dat` |
+| Files | `KHIII_slot<N>.bin`, `KHIII_system.bin` | `slot<N>.bin`, `system.bin` |
+
+The save is an `S@vE` structure (u32 file size at 4, version 5.2 at 8, CRC-32
+at `0x0C` over the file-size bytes from `0x10`; slot file size `0x94F4D8`).
+Xbox and PlayStation store it bare, `0x10` + file size bytes (9,762,024 for a
+slot). Steam and Epic zero-pad it to 16 bytes, encrypt it with **AES-256-ECB**,
+and append `0x08` and the MD5 of the first file size + 16 bytes (9,762,049
+bytes for a slot). ECB is obvious from the file: most of a slot is zeros, so
+one ciphertext block repeats about 590,000 times.
+
+The key is 32 characters taken from a fixed 90-character table, indexed by a
+fixed 32-byte mask XORed with the owner's account ID as text: the SteamID64 on
+Steam (the folder name, not the 32-bit account ID) and the constant `1638` on
+every Epic install. A Steam save is therefore bound to its account; savebridge
+reads the owner from the folder name, also tries the Epic constant and the
+Steam accounts on the PC, and re-encrypts for the receiving account. Format and
+key derivation as documented by
+[thirteenth-order/kh3-save-editor](https://github.com/thirteenth-order/kh3-save-editor);
+re-encrypting a decrypted Epic save reproduces it byte for byte.
+
+`system.bin` is game-wide data and settings, not an index of the slots, so
+slots import on their own and system data only with `--all`. Slots don't
+record their number, so `--slot-map` moves them freely.
 
 ### The Witcher 3: Wild Hunt (next-gen)
 

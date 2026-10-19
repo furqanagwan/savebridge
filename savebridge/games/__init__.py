@@ -13,6 +13,7 @@ from .ff7_remake import Ff7Rebirth, Ff7Remake
 from .ghosts import Ghosts
 from .halo_campaign_evolved import HaloCampaignEvolved
 from .kcd2 import Kcd2
+from .kh3 import KingdomHearts3
 from .mgs_delta import MgsDelta
 from .mouse_pi import MousePi
 from .re_engine import Onimusha
@@ -25,9 +26,11 @@ GAMES: dict[str, Game] = {g.id: g for g in (MgsDelta(), DestroyAllHumans(), Cont
                                              CrimsonDesert(), SilentHill2(), Ff7Remake(),
                                              Ff7Rebirth(), MousePi(), Dispatch(),
                                              BeastOfReincarnation(), Cuphead(), Onimusha(),
-                                             HaloCampaignEvolved(), Witcher3())}
+                                             HaloCampaignEvolved(), Witcher3(), KingdomHearts3())}
 
 ALIASES = {
+    'khiii': 'kh3',
+    'kingdom-hearts-3': 'kh3',
     'w3': 'witcher3',
     'witcher': 'witcher3',
     'mgs3': 'mgs-delta',

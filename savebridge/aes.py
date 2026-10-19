@@ -1,4 +1,4 @@
-"""AES-128 keystreams without third-party packages.
+"""AES without third-party packages: AES-128 OFB keystreams and AES-ECB.
 
 Uses Windows CNG (bcrypt.dll) when available and a small pure-Python AES
 otherwise (slow, but only needed off Windows, e.g. in tests).
@@ -54,6 +54,36 @@ def _cng_cbc_zeros(key: bytes, iv: bytes, length: int) -> bytes:
         ivb = (ctypes.c_ubyte * 16).from_buffer_copy(iv)
         done = ctypes.c_ulong()
         _check(bc.BCryptEncrypt(hkey, src, length, None, ivb, 16, dst, length, ctypes.byref(done), 0))
+        return bytes(dst)
+    finally:
+        bc.BCryptDestroyKey(hkey)
+
+
+_ecb = None
+
+
+def ecb(key: bytes, data: bytes, decrypt: bool = False) -> bytes:
+    """AES-ECB (128/192/256-bit key) over whole blocks, through Windows CNG."""
+    global _ecb
+    if len(data) % 16:
+        raise ValueError('AES-ECB needs whole 16-byte blocks')
+    if sys.platform != 'win32':
+        raise OSError('AES-ECB needs Windows (CNG)')
+    bc = ctypes.windll.bcrypt
+    if _ecb is None:
+        h = ctypes.c_void_p()
+        _check(bc.BCryptOpenAlgorithmProvider(ctypes.byref(h), 'AES', None, 0))
+        mode = ctypes.create_unicode_buffer('ChainingModeECB')
+        _check(bc.BCryptSetProperty(h, 'ChainingMode', mode, ctypes.sizeof(mode), 0))
+        _ecb = h
+    hkey = ctypes.c_void_p()
+    _check(bc.BCryptGenerateSymmetricKey(_ecb, ctypes.byref(hkey), None, 0, key, len(key), 0))
+    try:
+        src = (ctypes.c_ubyte * len(data)).from_buffer_copy(data)
+        dst = (ctypes.c_ubyte * len(data))()
+        done = ctypes.c_ulong()
+        run = bc.BCryptDecrypt if decrypt else bc.BCryptEncrypt
+        _check(run(hkey, src, len(data), None, None, 0, dst, len(data), ctypes.byref(done), 0))
         return bytes(dst)
     finally:
         bc.BCryptDestroyKey(hkey)

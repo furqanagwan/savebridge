@@ -37,6 +37,7 @@ Steam direction is covered by tests on synthetic saves.
 | Onimusha: Way of the Sword | ✅ verified | Capcom encryption; the Xbox version must have saved once |
 | Halo: Campaign Evolved | ✅ verified | Solo checkpoints; the Xbox profile must have saved once |
 | The Witcher 3: Wild Hunt (next-gen) | ✅ verified | Imported saves are added next to yours; the Xbox version must have saved once |
+| KINGDOM HEARTS III + Re Mind | ✅ verified | Steam and Epic saves (the Steam ones re-encrypted for your account) |
 
 Not supported yet: Resonance: A Plague Tale Legacy (the Xbox encryption key
 is unknown), other Capcom RE Engine games (same converter, need their Xbox

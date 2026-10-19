@@ -42,6 +42,15 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
+## KINGDOM HEARTS III save format
+
+`savebridge/games/kh3.py` implements the KINGDOM HEARTS III PC save container
+and key derivation as documented in the README of
+[thirteenth-order/kh3-save-editor](https://github.com/thirteenth-order/kh3-save-editor)
+(GPL-3.0). No code from that project is included; the format description, the
+key table and mask, and the published test vector were used to write an
+independent implementation.
+
 ## XboxAuthNet
 
 The app (`app/`) signs in to Xbox Live with [XboxAuthNet](https://github.com/AlphaBs/XboxAuthNet)
