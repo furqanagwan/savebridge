@@ -6,6 +6,7 @@ from .black_ops_2 import BlackOps2
 from .control_resonant import ControlResonant
 from .crimson_desert import CrimsonDesert
 from .cuphead import Cuphead
+from .darksiders_genesis import DarksidersGenesis
 from .dawnwalker import Dawnwalker
 from .destroy_all_humans import DestroyAllHumans
 from .dispatch import Dispatch
@@ -28,9 +29,11 @@ GAMES: dict[str, Game] = {g.id: g for g in (MgsDelta(), DestroyAllHumans(), Cont
                                              Ff7Rebirth(), MousePi(), Dispatch(),
                                              BeastOfReincarnation(), Cuphead(), Onimusha(),
                                              HaloCampaignEvolved(), Witcher3(), KingdomHearts3(),
-                                             KingdomHearts1525())}
+                                             KingdomHearts1525(), DarksidersGenesis())}
 
 ALIASES = {
+    'dsg': 'darksiders-genesis',
+    'genesis': 'darksiders-genesis',
     'kh1.5': 'kh1525',
     'kh2.5': 'kh1525',
     'kh1': 'kh1525',

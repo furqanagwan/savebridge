@@ -359,6 +359,23 @@ imported save. Destroy All Humans! 2 – Reprobed saves use the same classes on 
 newer engine and hang the 2020 game, so they are refused (engine version and
 world names).
 
+### Darksiders Genesis
+
+Same pattern as Destroy All Humans!: one Unreal Engine 4.22 build, plain GVAS
+files (class `DarksidersGenesis.MayhemSaveGame`) with no checksum and no
+account ID, in one per-PC folder that both stores use. The Xbox build does not
+use Xbox cloud saves.
+
+| File in `%LOCALAPPDATA%\THQ Nordic\Darksiders Genesis\Saved\SaveGames\user\` | Contents |
+|---|---|
+| `SaveSlot_<N>.sav` | profile N+1 on the title screen (N = 0, 1, 2) |
+| `SaveSlot_<N>.sav.bak` | the game's previous copy of that profile |
+
+A save doesn't record its slot, so it can go into any profile. savebridge
+writes the `.bak` with the same bytes so the game can't fall back to an older
+save. Each save lists the achievements it has awarded (`AwardedAchievements`);
+the list is kept as it is.
+
 ### CONTROL Resonant
 
 Every file is a Remedy RMDB blob with the same bytes on both stores:
