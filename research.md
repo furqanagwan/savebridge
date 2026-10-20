@@ -374,7 +374,8 @@ use Xbox cloud saves.
 A save doesn't record its slot, so it can go into any profile. savebridge
 writes the `.bak` with the same bytes so the game can't fall back to an older
 save. Each save lists the achievements it has awarded (`AwardedAchievements`);
-the list is kept as it is.
+the list is kept as it is, and achievements still unlocked on Xbox after
+importing a Steam save that already listed them.
 
 ### CONTROL Resonant
 
